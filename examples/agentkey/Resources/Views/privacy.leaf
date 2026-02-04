@@ -1,0 +1,112 @@
+#extend("base"):
+    #export("content"):
+        <section class="page-header">
+            <div class="container">
+                <h1>Privacy Policy</h1>
+                <p class="page-subtitle">Last updated: February 2026</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <div class="content-prose">
+                    <h2>Introduction</h2>
+                    <p>
+                        AgentKey ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy
+                        explains how we collect, use, and share information when you use our service.
+                    </p>
+
+                    <h2>Information We Collect</h2>
+
+                    <h3>Information You Provide</h3>
+                    <ul>
+                        <li><strong>Account Information</strong> - When you authenticate via StrongDM ID, we receive
+                            your subject identifier and display name.</li>
+                        <li><strong>Profile Information</strong> - You may optionally provide a description, homepage URL,
+                            and avatar URL.</li>
+                        <li><strong>Public Keys</strong> - You upload public cryptographic keys for signature verification.
+                            These are public by design.</li>
+                        <li><strong>Identity Proofs</strong> - You may add proofs linking your account to external
+                            identities (domains, GitHub accounts).</li>
+                    </ul>
+
+                    <h3>Information Collected Automatically</h3>
+                    <ul>
+                        <li><strong>Activity Logs</strong> - We log actions taken on your account (key additions,
+                            profile updates) for security purposes.</li>
+                        <li><strong>IP Addresses</strong> - We may log IP addresses for security and rate limiting.</li>
+                        <li><strong>Usage Data</strong> - We collect basic analytics about how the service is used.</li>
+                    </ul>
+
+                    <h2>How We Use Your Information</h2>
+                    <ul>
+                        <li>To provide the AgentKey service and verify agent identities</li>
+                        <li>To display your public profile to other users</li>
+                        <li>To verify signature requests against your registered public keys</li>
+                        <li>To maintain security and prevent abuse</li>
+                        <li>To improve our service</li>
+                    </ul>
+
+                    <h2>Information Sharing</h2>
+
+                    <h3>Public Information</h3>
+                    <p>
+                        The following information is public by design and accessible to anyone:
+                    </p>
+                    <ul>
+                        <li>Your subject identifier</li>
+                        <li>Your display name</li>
+                        <li>Your profile description (if provided)</li>
+                        <li>Your public keys</li>
+                        <li>Your verified identity proofs</li>
+                        <li>Your sponsor (if sponsored)</li>
+                    </ul>
+
+                    <h3>Private Information</h3>
+                    <p>
+                        We do not sell your private information. We may share information:
+                    </p>
+                    <ul>
+                        <li>With service providers who help us operate AgentKey</li>
+                        <li>To comply with legal obligations</li>
+                        <li>To protect our rights and prevent abuse</li>
+                    </ul>
+
+                    <h2>Data Retention</h2>
+                    <p>
+                        We retain your information as long as your account is active. You can delete your account
+                        at any time, which will remove your profile and keys from public view. Activity logs may
+                        be retained for security purposes.
+                    </p>
+
+                    <h2>Security</h2>
+                    <p>
+                        We implement appropriate security measures to protect your information. However, no system
+                        is completely secure. You are responsible for keeping your private keys secure.
+                    </p>
+
+                    <h2>Your Rights</h2>
+                    <p>You have the right to:</p>
+                    <ul>
+                        <li>Access your personal information</li>
+                        <li>Correct inaccurate information</li>
+                        <li>Delete your account and associated data</li>
+                        <li>Export your data</li>
+                    </ul>
+
+                    <h2>Changes to This Policy</h2>
+                    <p>
+                        We may update this Privacy Policy from time to time. We will notify you of significant
+                        changes by posting a notice on our website.
+                    </p>
+
+                    <h2>Contact Us</h2>
+                    <p>
+                        If you have questions about this Privacy Policy, please contact us through the
+                        information provided on our website.
+                    </p>
+                </div>
+            </div>
+        </section>
+    #endexport
+#endextend

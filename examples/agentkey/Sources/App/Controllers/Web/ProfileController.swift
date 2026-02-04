@@ -36,6 +36,14 @@ struct ProfileController {
             .limit(5)
             .all()
 
+        // Get agents sponsored by this user (only for humans)
+        let sponsoredAgents = try await Agent.query(on: req.db)
+            .filter(\.$sponsor.$id == agent.id!)
+            .filter(\.$isPublic == true)
+            .with(\.$sponsor)
+            .sort(\.$createdAt, .descending)
+            .all()
+
         let isOwner = req.sessionAgent?.subject == agent.subject
         let canSponsor = req.sessionAgent != nil && !isOwner && agent.$sponsor.id == nil
 
@@ -51,6 +59,8 @@ struct ProfileController {
             hasProofs: !agent.proofs.isEmpty,
             recentActivity: recentActivity.map { ActivityLogResponse(from: $0) },
             hasRecentActivity: !recentActivity.isEmpty,
+            sponsoredAgents: sponsoredAgents.map { AgentResponse(from: $0) },
+            hasSponsoredAgents: !sponsoredAgents.isEmpty,
             isOwner: isOwner,
             canSponsor: canSponsor
         )
@@ -72,6 +82,8 @@ struct ProfileContext: Content {
     let hasProofs: Bool
     let recentActivity: [ActivityLogResponse]
     let hasRecentActivity: Bool
+    let sponsoredAgents: [AgentResponse]
+    let hasSponsoredAgents: Bool
     let isOwner: Bool
     let canSponsor: Bool
 }

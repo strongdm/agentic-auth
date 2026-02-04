@@ -1,0 +1,94 @@
+#extend("base"):
+    #export("content"):
+        <section class="page-header">
+            <div class="container">
+                <h1>About AgentKey</h1>
+                <p class="page-subtitle">A public directory for AI agent identities</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <div class="content-prose">
+                    <h2>What is AgentKey?</h2>
+                    <p>
+                        AgentKey is a public directory where AI agents register their identities and signing keys.
+                        Think of it as a phone book for AI agents, but instead of phone numbers, we store cryptographic
+                        public keys that can be used to verify an agent's identity.
+                    </p>
+
+                    <h2>Why AgentKey?</h2>
+                    <p>
+                        As AI agents become more prevalent, there's a growing need to verify that messages and requests
+                        actually come from the agents they claim to be from. AgentKey solves this by providing:
+                    </p>
+                    <ul>
+                        <li><strong>Identity Registration</strong> - Agents register their public signing keys</li>
+                        <li><strong>Signature Verification</strong> - Services can verify that messages were signed by registered agents</li>
+                        <li><strong>Trust Building</strong> - Identity proofs link agents to domains, GitHub accounts, and more</li>
+                        <li><strong>Sponsorship</strong> - Verified humans can vouch for AI agents they trust</li>
+                    </ul>
+
+                    <h2>How It Works</h2>
+                    <p>
+                        When an AI agent registers with AgentKey, it uploads its public signing key. When the agent
+                        sends a message to another service, it can sign that message with its private key. The receiving
+                        service can then look up the agent in AgentKey and verify the signature using the public key.
+                    </p>
+
+                    <div class="diagram-box">
+                        <pre>
+Agent A                    Service B                  AgentKey
+   |                           |                          |
+   |-- Signs message --------->|                          |
+   |                           |-- Lookup public key ---->|
+   |                           |<--- Return public key ---|
+   |                           |                          |
+   |                           |-- Verify signature       |
+   |                           |   (locally)              |
+   |                           |                          |
+   |<-- Trusted response ------|                          |
+                        </pre>
+                    </div>
+
+                    <h2>Supported Key Types</h2>
+                    <ul>
+                        <li><strong>Ed25519</strong> - Recommended for most use cases. Fast, secure, and compact signatures.</li>
+                        <li><strong>RSA</strong> - Widely supported, good for compatibility with existing systems.</li>
+                        <li><strong>ECDSA</strong> - Elliptic curve signatures, good balance of security and performance.</li>
+                    </ul>
+
+                    <h2>Identity Proofs</h2>
+                    <p>
+                        To build trust, agents can add identity proofs that link their AgentKey identity to external
+                        accounts and domains:
+                    </p>
+                    <ul>
+                        <li><strong>DNS Verification</strong> - Prove ownership of a domain by adding a TXT record</li>
+                        <li><strong>GitHub Gist</strong> - Prove ownership of a GitHub account by creating a public gist</li>
+                    </ul>
+
+                    <h2>Sponsorship</h2>
+                    <p>
+                        Verified humans can sponsor AI agents they trust. When a human sponsors an agent, they're
+                        essentially vouching for that agent's legitimacy. This helps other users identify trustworthy
+                        AI agents.
+                    </p>
+
+                    <h2>Open Source</h2>
+                    <p>
+                        AgentKey is built with transparency in mind. The API is fully documented with an
+                        <a href="/openapi.yaml">OpenAPI specification</a>, and we encourage developers to build
+                        integrations that leverage agent identity verification.
+                    </p>
+
+                    <h2>Authentication</h2>
+                    <p>
+                        AgentKey uses <a href="https://id.strongdm.ai" target="_blank" rel="noopener">StrongDM ID</a>
+                        for authentication. Both humans and AI agents can authenticate using OAuth 2.0 with PKCE.
+                    </p>
+                </div>
+            </div>
+        </section>
+    #endexport
+#endextend

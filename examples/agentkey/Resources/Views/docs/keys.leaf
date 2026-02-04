@@ -1,0 +1,205 @@
+#extend("base"):
+    #export("content"):
+        <section class="page-header">
+            <div class="container">
+                <h1>Key Management Guide</h1>
+                <p class="page-subtitle">Best practices for managing your signing keys</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <div class="content-prose">
+                    <h2>Overview</h2>
+                    <p>
+                        AgentKey uses public key cryptography to verify agent identities. You generate a key pair
+                        (public and private), register the public key with AgentKey, and use the private key to
+                        sign messages. Others can verify your signatures using your registered public key.
+                    </p>
+
+                    <h2>Supported Key Types</h2>
+
+                    <h3>Ed25519 (Recommended)</h3>
+                    <p>
+                        Ed25519 is a modern elliptic curve signature scheme. It offers excellent security with
+                        small key and signature sizes.
+                    </p>
+                    <div class="code-example">
+                        <pre><code># Generate Ed25519 key pair
+openssl genpkey -algorithm ED25519 -out private.pem
+openssl pkey -in private.pem -pubout -out public.pem</code></pre>
+                    </div>
+
+                    <h3>RSA</h3>
+                    <p>
+                        RSA is widely supported and well-understood. Use at least 2048-bit keys for security.
+                    </p>
+                    <div class="code-example">
+                        <pre><code># Generate RSA key pair (4096-bit)
+openssl genpkey -algorithm RSA -out private.pem -pkeyopt rsa_keygen_bits:4096
+openssl pkey -in private.pem -pubout -out public.pem</code></pre>
+                    </div>
+
+                    <h3>ECDSA</h3>
+                    <p>
+                        ECDSA provides good security with smaller key sizes than RSA.
+                    </p>
+                    <div class="code-example">
+                        <pre><code># Generate ECDSA key pair (P-256 curve)
+openssl ecparam -genkey -name prime256v1 -out private.pem
+openssl pkey -in private.pem -pubout -out public.pem</code></pre>
+                    </div>
+
+                    <h2>Registering Keys</h2>
+                    <p>
+                        After generating your key pair, register the public key through the
+                        <a href="/dashboard/keys">Dashboard</a> or via the API:
+                    </p>
+                    <div class="code-example">
+                        <pre><code>curl -X POST https://agentkey.example.com/api/v1/agents/{agent_id}/keys \
+  -H "Authorization: Bearer &lt;token&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "publicKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
+    "keyType": "ed25519",
+    "label": "Production Key 2024",
+    "isPrimary": true
+  }'</code></pre>
+                    </div>
+
+                    <h2>Key Labels</h2>
+                    <p>
+                        Use descriptive labels for your keys to help you identify them later:
+                    </p>
+                    <ul>
+                        <li><strong>Production Key 2024</strong> - For production environments</li>
+                        <li><strong>Development</strong> - For testing and development</li>
+                        <li><strong>CI/CD Pipeline</strong> - For automated systems</li>
+                        <li><strong>Backup Key</strong> - Emergency backup key</li>
+                    </ul>
+
+                    <h2>Primary Keys</h2>
+                    <p>
+                        You can designate one key as your primary key. When someone verifies a signature without
+                        specifying a key fingerprint, the primary key is used first. Keep your primary key as
+                        your most trusted, production key.
+                    </p>
+
+                    <h2>Key Rotation</h2>
+                    <p>
+                        Regular key rotation improves security. We recommend:
+                    </p>
+                    <ol>
+                        <li>Generate a new key pair</li>
+                        <li>Register the new public key</li>
+                        <li>Update your systems to use the new private key</li>
+                        <li>Revoke the old key after a transition period</li>
+                    </ol>
+
+                    <h2>Revoking Keys</h2>
+                    <p>
+                        If a private key is compromised or no longer needed, revoke it immediately:
+                    </p>
+                    <ul>
+                        <li>Via Dashboard: Go to <a href="/dashboard/keys">Keys</a> and click "Revoke"</li>
+                        <li>Via API: <code>DELETE /api/v1/agents/{id}/keys/{keyId}</code></li>
+                    </ul>
+                    <p>
+                        Revoked keys are kept for audit purposes but will not be used for verification.
+                    </p>
+
+                    <h2>Signing Messages</h2>
+
+                    <h3>Python Example</h3>
+                    <div class="code-example">
+                        <pre><code>from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+import base64
+
+# Load private key
+with open("private.pem", "rb") as f:
+    private_key = serialization.load_pem_private_key(f.read(), password=None)
+
+# Sign message
+message = b"Hello, this is a signed message"
+signature = private_key.sign(message)
+signature_b64 = base64.b64encode(signature).decode()
+
+print(f"Message: {message.decode()}")
+print(f"Signature: {signature_b64}")</code></pre>
+                    </div>
+
+                    <h3>Node.js Example</h3>
+                    <div class="code-example">
+                        <pre><code>const crypto = require('crypto');
+const fs = require('fs');
+
+// Load private key
+const privateKey = fs.readFileSync('private.pem');
+
+// Sign message
+const message = 'Hello, this is a signed message';
+const sign = crypto.createSign('SHA256');
+sign.update(message);
+const signature = sign.sign(privateKey, 'base64');
+
+console.log('Message:', message);
+console.log('Signature:', signature);</code></pre>
+                    </div>
+
+                    <h3>Go Example</h3>
+                    <div class="code-example">
+                        <pre><code>package main
+
+import (
+    "crypto/ed25519"
+    "encoding/base64"
+    "encoding/pem"
+    "fmt"
+    "os"
+)
+
+func main() {
+    // Load private key (simplified)
+    keyPEM, _ := os.ReadFile("private.pem")
+    block, _ := pem.Decode(keyPEM)
+    privateKey := ed25519.PrivateKey(block.Bytes[len(block.Bytes)-64:])
+
+    // Sign message
+    message := []byte("Hello, this is a signed message")
+    signature := ed25519.Sign(privateKey, message)
+    signatureB64 := base64.StdEncoding.EncodeToString(signature)
+
+    fmt.Println("Message:", string(message))
+    fmt.Println("Signature:", signatureB64)
+}</code></pre>
+                    </div>
+
+                    <h2>Verifying Signatures</h2>
+                    <p>
+                        Services can verify signatures using the AgentKey API:
+                    </p>
+                    <div class="code-example">
+                        <pre><code>curl -X POST https://agentkey.example.com/api/v1/verify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "your-subject-id",
+    "message": "Hello, this is a signed message",
+    "signature": "&lt;base64_signature&gt;"
+  }'</code></pre>
+                    </div>
+
+                    <h2>Security Best Practices</h2>
+                    <ul>
+                        <li><strong>Never share your private key</strong> - The private key should never leave your secure environment</li>
+                        <li><strong>Use hardware security modules (HSMs)</strong> - For high-security applications</li>
+                        <li><strong>Encrypt private keys at rest</strong> - Use password protection or encryption</li>
+                        <li><strong>Limit access</strong> - Only authorized systems should access private keys</li>
+                        <li><strong>Monitor for compromise</strong> - Watch for unauthorized signatures</li>
+                        <li><strong>Have a revocation plan</strong> - Know how to quickly revoke compromised keys</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    #endexport
+#endextend

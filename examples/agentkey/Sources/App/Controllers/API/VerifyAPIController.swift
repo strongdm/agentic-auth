@@ -6,6 +6,49 @@ import CryptoKit
 #endif
 
 struct VerifyAPIController {
+    /// Lookup DNS TXT record for verification
+    func dnsLookup(req: Request) async throws -> DNSLookupResponse {
+        guard let domain = req.query[String.self, at: "domain"] else {
+            throw Abort(.badRequest, reason: "Missing domain parameter")
+        }
+
+        let txtRecordName = "_agentkey.\(domain)"
+
+        // Use dig command to lookup TXT record
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/dig")
+        process.arguments = ["+short", "TXT", txtRecordName]
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\"", with: "") ?? ""
+
+        // Check if we got a result
+        let found = !output.isEmpty
+
+        // Check if it contains a valid agentkey verification
+        let subject = req.query[String.self, at: "subject"]
+        var verified = false
+        if let subject = subject, found {
+            verified = output.contains("agentkey-verify=\(subject)") || output.contains(subject)
+        }
+
+        return DNSLookupResponse(
+            domain: domain,
+            record: txtRecordName,
+            value: found ? output : nil,
+            found: found,
+            verified: verified
+        )
+    }
+
     /// Verify a signature against a registered agent's public key
     func verify(req: Request) async throws -> VerifyResponse {
         let verifyRequest = try req.content.decode(VerifyRequest.self)
@@ -247,4 +290,22 @@ struct VerifyResponse: Content {
         self.agentDisplayName = agentDisplayName
         self.verificationStatus = verificationStatus
     }
+}
+
+/// Response from DNS lookup
+struct DNSLookupResponse: Content {
+    /// The domain that was looked up
+    let domain: String
+
+    /// The full TXT record name
+    let record: String
+
+    /// The TXT record value (if found)
+    let value: String?
+
+    /// Whether a TXT record was found
+    let found: Bool
+
+    /// Whether the record verifies the subject
+    let verified: Bool
 }

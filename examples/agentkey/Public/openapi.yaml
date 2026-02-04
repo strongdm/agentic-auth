@@ -1,0 +1,809 @@
+openapi: 3.1.0
+info:
+  title: AgentKey API
+  description: |
+    AgentKey is a public directory for AI agent identities and signing keys.
+
+    ## Authentication
+
+    Protected endpoints require a Bearer token from id.strongdm.ai:
+    ```
+    Authorization: Bearer <access_token>
+    ```
+
+    ## Rate Limiting
+
+    API requests are rate limited to 100 requests per minute per IP address.
+  version: 1.0.0
+  contact:
+    name: AgentKey Support
+    url: https://agentkey.example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://agentkey.example.com/api/v1
+    description: Production server
+  - url: http://localhost:9873/api/v1
+    description: Local development
+
+tags:
+  - name: Agents
+    description: Agent registration and management
+  - name: Keys
+    description: Public key management
+  - name: Verification
+    description: Signature verification
+  - name: Health
+    description: Service health checks
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Returns the health status of the service
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /agents:
+    get:
+      tags:
+        - Agents
+      summary: List public agents
+      description: Returns a paginated list of public agents
+      operationId: listAgents
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of results per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: type
+          in: query
+          description: Filter by agent type
+          schema:
+            $ref: '#/components/schemas/AgentType'
+        - name: q
+          in: query
+          description: Search query (searches displayName, subject, description)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Agent'
+
+    post:
+      tags:
+        - Agents
+      summary: Register a new agent
+      description: Creates a new agent profile (requires authentication)
+      operationId: createAgent
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAgentRequest'
+      responses:
+        '201':
+          description: Agent created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /agents/{agentId}:
+    get:
+      tags:
+        - Agents
+      summary: Get agent by ID
+      description: Returns a single agent by their UUID
+      operationId: getAgent
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      responses:
+        '200':
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Agents
+      summary: Update agent profile
+      description: Updates an agent's profile (owner only)
+      operationId: updateAgent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAgentRequest'
+      responses:
+        '200':
+          description: Agent updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Agents
+      summary: Delete agent
+      description: Deletes an agent and all associated keys (owner only)
+      operationId: deleteAgent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      responses:
+        '204':
+          description: Agent deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /agents/subject/{subject}:
+    get:
+      tags:
+        - Agents
+      summary: Get agent by subject
+      description: Returns a single agent by their subject identifier
+      operationId: getAgentBySubject
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          description: The agent's subject identifier (from StrongDM ID)
+          schema:
+            type: string
+          example: "agt_abc123def456"
+      responses:
+        '200':
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /agents/{agentId}/keys:
+    get:
+      tags:
+        - Keys
+      summary: List agent's public keys
+      description: Returns all non-revoked public keys for an agent
+      operationId: listAgentKeys
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      responses:
+        '200':
+          description: List of public keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicKey'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Keys
+      summary: Add a public key
+      description: Registers a new public signing key for the agent (owner only)
+      operationId: createKey
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateKeyRequest'
+      responses:
+        '201':
+          description: Key created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Key already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /agents/{agentId}/keys/{keyId}:
+    delete:
+      tags:
+        - Keys
+      summary: Revoke a key
+      description: Revokes a public key (owner only). Revoked keys are kept for audit purposes but will not be used for verification.
+      operationId: revokeKey
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+        - name: keyId
+          in: path
+          required: true
+          description: The key's UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Key revoked successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /agents/{agentId}/sponsor:
+    post:
+      tags:
+        - Agents
+      summary: Sponsor an agent
+      description: Sponsor an AI agent (human accounts only). The sponsoring human vouches for the agent's legitimacy.
+      operationId: sponsorAgent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      responses:
+        '200':
+          description: Agent sponsored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Only humans can sponsor agents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /agents/{agentId}/activity:
+    get:
+      tags:
+        - Agents
+      summary: Get agent activity log
+      description: Returns the activity log for an agent (owner only)
+      operationId: getAgentActivity
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Activity log
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ActivityLog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /verify:
+    post:
+      tags:
+        - Verification
+      summary: Verify a signature
+      description: |
+        Verifies that a message was signed by a registered agent's private key.
+
+        You can identify the agent by:
+        - `agentId` - The agent's UUID
+        - `subject` - The agent's subject identifier
+        - `keyFingerprint` - A specific key's fingerprint
+      operationId: verifySignature
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /dns-lookup:
+    get:
+      tags:
+        - Verification
+      summary: DNS TXT record lookup
+      description: Performs a DNS TXT record lookup for verification purposes
+      operationId: dnsLookup
+      parameters:
+        - name: domain
+          in: query
+          required: true
+          description: The domain to look up
+          schema:
+            type: string
+          example: "example.com"
+        - name: subject
+          in: query
+          description: The subject to verify against
+          schema:
+            type: string
+      responses:
+        '200':
+          description: DNS lookup result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DNSLookupResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token from id.strongdm.ai
+
+  parameters:
+    AgentId:
+      name: agentId
+      in: path
+      required: true
+      description: The agent's UUID
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Access denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+      properties:
+        status:
+          type: string
+          example: "ok"
+        timestamp:
+          type: string
+          format: date-time
+
+    AgentType:
+      type: string
+      enum:
+        - human
+        - assistant
+        - tool
+        - orchestrator
+        - service
+        - bot
+      description: The type of agent
+
+    VerificationStatus:
+      type: string
+      enum:
+        - unverified
+        - pending
+        - verified
+      description: The verification status of an agent
+
+    Agent:
+      type: object
+      required:
+        - id
+        - subject
+        - displayName
+        - agentType
+        - isPublic
+        - verificationStatus
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        subject:
+          type: string
+          description: Unique identifier from StrongDM ID
+          example: "agt_abc123def456"
+        displayName:
+          type: string
+          example: "Code Review Agent"
+        description:
+          type: string
+          nullable: true
+          example: "An AI assistant that helps with code review"
+        agentType:
+          $ref: '#/components/schemas/AgentType'
+        homepageUrl:
+          type: string
+          format: uri
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        isPublic:
+          type: boolean
+        verificationStatus:
+          $ref: '#/components/schemas/VerificationStatus'
+        sponsor:
+          $ref: '#/components/schemas/SponsorInfo'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SponsorInfo:
+      type: object
+      nullable: true
+      properties:
+        id:
+          type: string
+          format: uuid
+        subject:
+          type: string
+        displayName:
+          type: string
+
+    CreateAgentRequest:
+      type: object
+      required:
+        - displayName
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        agentType:
+          $ref: '#/components/schemas/AgentType'
+        homepageUrl:
+          type: string
+          format: uri
+        avatarUrl:
+          type: string
+          format: uri
+        isPublic:
+          type: boolean
+          default: true
+
+    UpdateAgentRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        agentType:
+          $ref: '#/components/schemas/AgentType'
+        homepageUrl:
+          type: string
+          format: uri
+        avatarUrl:
+          type: string
+          format: uri
+        isPublic:
+          type: boolean
+
+    KeyType:
+      type: string
+      enum:
+        - ed25519
+        - rsa
+        - ecdsa
+      description: The cryptographic algorithm of the key
+
+    KeyFormat:
+      type: string
+      enum:
+        - pem
+        - jwk
+      description: The format of the public key
+
+    PublicKey:
+      type: object
+      required:
+        - id
+        - fingerprint
+        - keyType
+        - publicKey
+        - keyFormat
+        - isPrimary
+        - isRevoked
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        fingerprint:
+          type: string
+          description: SHA-256 fingerprint of the public key
+          example: "ab:cd:ef:12:34:..."
+        keyType:
+          $ref: '#/components/schemas/KeyType'
+        publicKey:
+          type: string
+          description: The public key in PEM or JWK format
+        keyFormat:
+          $ref: '#/components/schemas/KeyFormat'
+        label:
+          type: string
+          nullable: true
+          example: "Production Key 2024"
+        isPrimary:
+          type: boolean
+          description: Whether this is the primary signing key
+        isRevoked:
+          type: boolean
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateKeyRequest:
+      type: object
+      required:
+        - publicKey
+        - keyType
+      properties:
+        publicKey:
+          type: string
+          description: The public key in PEM format
+        keyType:
+          $ref: '#/components/schemas/KeyType'
+        label:
+          type: string
+          maxLength: 100
+        isPrimary:
+          type: boolean
+          default: false
+        expiresAt:
+          type: string
+          format: date-time
+
+    VerifyRequest:
+      type: object
+      required:
+        - message
+        - signature
+      properties:
+        message:
+          type: string
+          description: The original message that was signed
+        signature:
+          type: string
+          description: Base64-encoded signature
+        agentId:
+          type: string
+          format: uuid
+          description: Agent UUID (optional if subject or keyFingerprint provided)
+        subject:
+          type: string
+          description: Agent subject (optional if agentId or keyFingerprint provided)
+        keyFingerprint:
+          type: string
+          description: Specific key fingerprint to use (optional)
+
+    VerifyResponse:
+      type: object
+      required:
+        - valid
+      properties:
+        valid:
+          type: boolean
+          description: Whether the signature is valid
+        error:
+          type: string
+          nullable: true
+          description: Error message if verification failed
+        keyFingerprint:
+          type: string
+          nullable: true
+        agentSubject:
+          type: string
+          nullable: true
+        agentDisplayName:
+          type: string
+          nullable: true
+        verificationStatus:
+          $ref: '#/components/schemas/VerificationStatus'
+
+    DNSLookupResponse:
+      type: object
+      required:
+        - domain
+        - record
+        - found
+        - verified
+      properties:
+        domain:
+          type: string
+        record:
+          type: string
+          description: The TXT record name that was looked up
+        value:
+          type: string
+          nullable: true
+          description: The TXT record value (if found)
+        found:
+          type: boolean
+        verified:
+          type: boolean
+          description: Whether the record verifies the subject
+
+    ActivityLog:
+      type: object
+      required:
+        - id
+        - action
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        action:
+          type: string
+          example: "key_added"
+        details:
+          type: object
+          additionalProperties: true
+          nullable: true
+        ipAddress:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      required:
+        - error
+        - reason
+      properties:
+        error:
+          type: boolean
+          example: true
+        reason:
+          type: string
+          example: "Resource not found"

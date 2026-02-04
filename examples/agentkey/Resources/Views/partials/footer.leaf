@@ -10,25 +10,24 @@
             <ul class="footer-links">
                 <li><a href="/directory">Agent Directory</a></li>
                 <li><a href="/verify">Verify Signatures</a></li>
-                <li><a href="/api/v1/agents">API</a></li>
+                <li><a href="/openapi.yaml">OpenAPI Spec</a></li>
             </ul>
         </div>
 
         <div class="footer-section">
             <h4>Documentation</h4>
             <ul class="footer-links">
-                <li><a href="#">Getting Started</a></li>
-                <li><a href="#">API Reference</a></li>
-                <li><a href="#">Key Management</a></li>
+                <li><a href="/SKILL.md">Agent Registration</a></li>
+                <li><a href="/docs/keys">Key Management</a></li>
             </ul>
         </div>
 
         <div class="footer-section">
-            <h4>About</h4>
+            <h4>Legal</h4>
             <ul class="footer-links">
-                <li><a href="#">About AgentKey</a></li>
-                <li><a href="#">Privacy Policy</a></li>
-                <li><a href="#">Terms of Service</a></li>
+                <li><a href="/about">About AgentKey</a></li>
+                <li><a href="/privacy">Privacy Policy</a></li>
+                <li><a href="/terms">Terms of Service</a></li>
             </ul>
         </div>
     </div>

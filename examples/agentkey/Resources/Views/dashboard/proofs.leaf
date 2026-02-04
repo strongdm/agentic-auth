@@ -124,16 +124,19 @@
         <script>
             const proofInstructions = {
                 dns: {
-                    claimHint: 'The domain you own (e.g., example.com)',
-                    proofHint: 'The TXT record name (e.g., _agentkey.example.com)',
+                    claimHint: 'Your domain without prefix (e.g., example.com)',
+                    proofHint: 'Enter the same domain (we look up _agentkey.<domain>)',
                     instructions: `
                         <h4>DNS Verification</h4>
+                        <p>We will look up <code>_agentkey.&lt;your-domain&gt;</code> as a TXT record.</p>
                         <ol>
-                            <li>Add a TXT record to your domain's DNS</li>
-                            <li>Record name: <code>_agentkey.yourdomain.com</code></li>
-                            <li>Record value: <code>agentkey-verify=#(agent.subject)</code></li>
+                            <li>Add a TXT record to your domain's DNS:</li>
+                            <li>Record name/host: <code>_agentkey</code> (or <code>_agentkey.example.com</code> for full name)</li>
+                            <li>Record type: <code>TXT</code></li>
+                            <li>Record value: <code>#(agent.subject)</code></li>
                             <li>Wait for DNS propagation (may take up to 48 hours)</li>
                         </ol>
+                        <p><strong>Example:</strong> For domain <code>example.com</code>, create TXT record <code>_agentkey.example.com</code> with value <code>#(agent.subject)</code></p>
                     `
                 },
                 github: {

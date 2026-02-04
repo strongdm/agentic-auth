@@ -78,6 +78,8 @@ struct ProofResponse: Content {
     let isPending: Bool
     let isVerified: Bool
     let isFailed: Bool
+    let isDNS: Bool
+    let isGitHub: Bool
     let verifiedAt: Date?
     let createdAt: Date?
 
@@ -90,6 +92,8 @@ struct ProofResponse: Content {
         self.isPending = proof.status == .pending
         self.isVerified = proof.status == .verified
         self.isFailed = proof.status == .failed
+        self.isDNS = proof.proofType == .dns
+        self.isGitHub = proof.proofType == .github
         self.verifiedAt = proof.verifiedAt
         self.createdAt = proof.createdAt
     }

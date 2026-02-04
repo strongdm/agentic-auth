@@ -96,7 +96,16 @@
                                             <strong>#(proof.claim)</strong>
                                         </div>
                                         <div class="proof-data">
-                                            <a href="#(proof.proofData)" target="_blank" rel="noopener">View Proof</a>
+                                            #if(proof.isDNS):
+                                                <code class="dns-record">_agentkey.#(proof.claim) TXT</code>
+                                                <button class="btn btn-small btn-secondary dns-lookup-btn" data-domain="#(proof.claim)" data-subject="#(agent.subject)">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                                                    Check DNS
+                                                </button>
+                                                <div class="dns-result" id="dns-result-#(proof.id)" style="display:none;"></div>
+                                            #else:
+                                                <a href="#(proof.proofData)" target="_blank" rel="noopener">View Proof</a>
+                                            #endif
                                         </div>
                                         #if(proof.verifiedAt):
                                             <div class="proof-verified">
@@ -104,6 +113,16 @@
                                             </div>
                                         #endif
                                     </div>
+                                #endfor
+                            </div>
+                        #endif
+
+                        #if(hasSponsoredAgents):
+                            <h2>Sponsored Agents</h2>
+                            <p class="section-description">AI agents sponsored by this identity</p>
+                            <div class="agents-grid agents-grid-compact">
+                                #for(agent in sponsoredAgents):
+                                    #extend("partials/agent-card")
                                 #endfor
                             </div>
                         #endif

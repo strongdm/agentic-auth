@@ -15,7 +15,15 @@ func routes(_ app: Application) throws {
     app.get("search", use: homeController.search)
     app.get("verify", use: homeController.verifyPage)
 
-    // Public agent profile (Keybase-style URL)
+    // Static pages
+    let staticController = StaticPagesController()
+    app.get("about", use: staticController.about)
+    app.get("privacy", use: staticController.privacy)
+    app.get("terms", use: staticController.terms)
+    app.get("docs", "keys", use: staticController.keysDoc)
+    app.get("SKILL.md", use: staticController.skillFile)
+
+    // Public agent profile (Keybase-style URL) - must be last due to wildcard
     let profileController = ProfileController()
     app.get(":subject", use: profileController.show)
 
@@ -79,6 +87,7 @@ func routes(_ app: Application) throws {
     // Verify API
     let verifyAPIController = VerifyAPIController()
     api.post("verify", use: verifyAPIController.verify)
+    api.get("dns-lookup", use: verifyAPIController.dnsLookup)
 
     // Activity API (protected)
     let activityAPI = api.grouped(StrongDMAuthMiddleware())

@@ -1,0 +1,135 @@
+#extend("base"):
+    #export("content"):
+        <section class="page-header">
+            <div class="container">
+                <h1>Terms of Service</h1>
+                <p class="page-subtitle">Last updated: February 2026</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <div class="content-prose">
+                    <h2>1. Acceptance of Terms</h2>
+                    <p>
+                        By accessing or using AgentKey ("the Service"), you agree to be bound by these Terms of Service.
+                        If you do not agree to these terms, do not use the Service.
+                    </p>
+
+                    <h2>2. Description of Service</h2>
+                    <p>
+                        AgentKey is a public directory for AI agent identities and signing keys. The Service allows:
+                    </p>
+                    <ul>
+                        <li>Registration of agent profiles and public signing keys</li>
+                        <li>Verification of cryptographic signatures</li>
+                        <li>Identity proofs linking agents to external accounts</li>
+                        <li>Sponsorship relationships between humans and AI agents</li>
+                    </ul>
+
+                    <h2>3. Eligibility</h2>
+                    <p>
+                        To use the Service, you must have a valid StrongDM ID account. You are responsible for
+                        maintaining the security of your authentication credentials.
+                    </p>
+
+                    <h2>4. User Responsibilities</h2>
+                    <p>You agree to:</p>
+                    <ul>
+                        <li>Provide accurate information in your profile</li>
+                        <li>Keep your private keys secure and confidential</li>
+                        <li>Not impersonate other agents or entities</li>
+                        <li>Not use the Service for illegal purposes</li>
+                        <li>Not attempt to circumvent security measures</li>
+                        <li>Comply with all applicable laws and regulations</li>
+                    </ul>
+
+                    <h2>5. Public Nature of the Service</h2>
+                    <p>
+                        You understand and agree that:
+                    </p>
+                    <ul>
+                        <li>Registered public keys are publicly accessible</li>
+                        <li>Profile information may be viewed by anyone</li>
+                        <li>Signature verification requests can be made by anyone</li>
+                        <li>Identity proofs are publicly visible</li>
+                    </ul>
+
+                    <h2>6. Key Management</h2>
+                    <p>
+                        You are solely responsible for:
+                    </p>
+                    <ul>
+                        <li>Generating and securing your private keys</li>
+                        <li>Revoking compromised keys promptly</li>
+                        <li>Any actions taken using your registered keys</li>
+                    </ul>
+                    <p>
+                        AgentKey is not responsible for any loss or damage resulting from compromised private keys.
+                    </p>
+
+                    <h2>7. Sponsorship</h2>
+                    <p>
+                        If you sponsor an AI agent, you represent that you have reviewed the agent and believe
+                        it to be legitimate. Sponsorship does not create any legal relationship or liability
+                        between sponsors and sponsored agents.
+                    </p>
+
+                    <h2>8. Prohibited Uses</h2>
+                    <p>You may not use the Service to:</p>
+                    <ul>
+                        <li>Register keys for malicious purposes</li>
+                        <li>Conduct fraudulent activities</li>
+                        <li>Distribute malware or harmful content</li>
+                        <li>Violate any laws or regulations</li>
+                        <li>Infringe on intellectual property rights</li>
+                        <li>Harass or harm other users</li>
+                    </ul>
+
+                    <h2>9. Termination</h2>
+                    <p>
+                        We reserve the right to suspend or terminate your access to the Service at any time,
+                        for any reason, without notice. You may also delete your account at any time.
+                    </p>
+
+                    <h2>10. Disclaimer of Warranties</h2>
+                    <p>
+                        THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED.
+                        WE DO NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, OR SECURE.
+                    </p>
+
+                    <h2>11. Limitation of Liability</h2>
+                    <p>
+                        TO THE MAXIMUM EXTENT PERMITTED BY LAW, WE SHALL NOT BE LIABLE FOR ANY INDIRECT,
+                        INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING FROM YOUR USE OF
+                        THE SERVICE.
+                    </p>
+
+                    <h2>12. Indemnification</h2>
+                    <p>
+                        You agree to indemnify and hold harmless AgentKey and its operators from any claims,
+                        damages, or expenses arising from your use of the Service or violation of these Terms.
+                    </p>
+
+                    <h2>13. Changes to Terms</h2>
+                    <p>
+                        We may modify these Terms at any time. Continued use of the Service after changes
+                        constitutes acceptance of the modified Terms.
+                    </p>
+
+                    <h2>14. Governing Law</h2>
+                    <p>
+                        These Terms shall be governed by and construed in accordance with applicable laws,
+                        without regard to conflict of law principles.
+                    </p>
+
+                    <h2>15. Contact</h2>
+                    <p>
+                        For questions about these Terms, please contact us through the information provided
+                        on our website.
+                    </p>
+                </div>
+            </div>
+        </section>
+    #endexport
+#endextend

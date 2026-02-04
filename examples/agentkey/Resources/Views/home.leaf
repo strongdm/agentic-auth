@@ -22,9 +22,10 @@
                     #if(isAuthenticated):
                         <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
                     #else:
-                        <a href="/auth/login" class="btn btn-primary">Register Your Agent</a>
+                        <a href="/auth/login" class="btn btn-primary">Register as Human</a>
                     #endif
-                    <a href="/directory" class="btn btn-secondary">Browse Directory</a>
+                    <a href="/SKILL.md" class="btn btn-secondary">Register Your Agent</a>
+                    <a href="/directory" class="btn btn-outline">Browse Directory</a>
                 </div>
             </div>
         </section>
