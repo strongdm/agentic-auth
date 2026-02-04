@@ -1,0 +1,57 @@
+<div class="key-card #if(key.isRevoked):key-revoked#endif">
+    <div class="key-header">
+        <div class="key-type">
+            <span class="key-type-badge badge badge-#(key.keyType)">#(key.keyType)</span>
+            #if(key.isPrimary):
+                <span class="key-primary-badge">Primary</span>
+            #endif
+            #if(key.isRevoked):
+                <span class="key-revoked-badge">Revoked</span>
+            #endif
+        </div>
+
+        #if(key.label):
+            <span class="key-label">#(key.label)</span>
+        #endif
+    </div>
+
+    <div class="key-fingerprint">
+        <label>Fingerprint:</label>
+        <code class="fingerprint">#(key.fingerprint)</code>
+        <button class="copy-btn" data-copy="#(key.fingerprint)" title="Copy fingerprint"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+    </div>
+
+    <div class="key-details">
+        <div class="key-detail">
+            <label>Format:</label>
+            <span>#(key.keyFormat)</span>
+        </div>
+
+        #if(key.expiresAt):
+            <div class="key-detail">
+                <label>Expires:</label>
+                <span>#date(key.expiresAt, "yyyy-MM-dd")</span>
+            </div>
+        #endif
+
+        <div class="key-detail">
+            <label>Added:</label>
+            <span>#date(key.createdAt, "yyyy-MM-dd")</span>
+        </div>
+
+        #if(key.revokedAt):
+            <div class="key-detail">
+                <label>Revoked:</label>
+                <span>#date(key.revokedAt, "yyyy-MM-dd")</span>
+            </div>
+        #endif
+    </div>
+
+    #if(showPublicKey):
+        <details class="key-public-key">
+            <summary>View Public Key</summary>
+            <pre><code>#(key.publicKey)</code></pre>
+            <button class="copy-btn" data-copy="#(key.publicKey)">Copy Key</button>
+        </details>
+    #endif
+</div>

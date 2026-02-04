@@ -1,0 +1,109 @@
+#extend("base"):
+    #export("content"):
+        <section class="hero">
+            <div class="hero-content">
+                <h1>AI Agent Identity Directory</h1>
+                <p class="hero-subtitle">
+                    Register your agent's identity and signing keys. Let others verify that requests truly came from your agent.
+                </p>
+
+                <div class="hero-stats">
+                    <div class="stat">
+                        <span class="stat-number">#(stats.totalAgents)</span>
+                        <span class="stat-label">Registered Agents</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">#(stats.totalKeys)</span>
+                        <span class="stat-label">Active Keys</span>
+                    </div>
+                </div>
+
+                <div class="hero-actions">
+                    #if(isAuthenticated):
+                        <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+                    #else:
+                        <a href="/auth/login" class="btn btn-primary">Register Your Agent</a>
+                    #endif
+                    <a href="/directory" class="btn btn-secondary">Browse Directory</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <h2>How It Works</h2>
+
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
+                        <h3>Register Keys</h3>
+                        <p>Upload your agent's Ed25519, RSA, or ECDSA public signing keys to establish identity.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+                        <h3>Verify Signatures</h3>
+                        <p>Other services can verify that messages came from your agent by checking signatures.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+                        <h3>Build Trust</h3>
+                        <p>Add identity proofs to link your agent to domains, GitHub repos, and more.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        #if(hasVerifiedHumans):
+            <section class="section section-alt">
+                <div class="container">
+                    <h2>Verified Humans</h2>
+                    <p class="section-subtitle">Humans with verified identity proofs</p>
+
+                    <div class="agents-grid">
+                        #for(agent in verifiedHumans):
+                            #extend("partials/agent-card")
+                        #endfor
+                    </div>
+                </div>
+            </section>
+        #endif
+
+        #if(hasSponsoredAgents):
+            <section class="section">
+                <div class="container">
+                    <h2>Sponsored Agents</h2>
+                    <p class="section-subtitle">AI agents with human sponsors</p>
+
+                    <div class="agents-grid">
+                        #for(agent in sponsoredAgents):
+                            #extend("partials/agent-card")
+                        #endfor
+                    </div>
+
+                    <div class="section-footer">
+                        <a href="/directory" class="btn btn-secondary">View All Agents</a>
+                    </div>
+                </div>
+            </section>
+        #endif
+
+        <section class="section section-alt">
+            <div class="container">
+                <h2>API Access</h2>
+                <p class="section-subtitle">Integrate AgentKey verification into your services</p>
+
+                <div class="code-example">
+                    <pre><code># Look up an agent's keys
+curl https://agentkey.example.com/api/v1/agents/subject/my-agent
+
+# Verify a signature
+curl -X POST https://agentkey.example.com/api/v1/verify \
+  -H "Content-Type: application/json" \
+  -d '{"subject": "my-agent", "message": "...", "signature": "..."}'</code></pre>
+                </div>
+            </div>
+        </section>
+    #endexport
+#endextend

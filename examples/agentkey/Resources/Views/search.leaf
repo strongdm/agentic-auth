@@ -1,0 +1,44 @@
+#extend("base"):
+    #export("content"):
+        <section class="page-header">
+            <div class="container">
+                <h1>Search Results</h1>
+                #if(query):
+                    <p>Results for "#(query)"</p>
+                #endif
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <form action="/search" method="get" class="search-form search-form-large">
+                    <input type="text" name="q" value="#(query)" placeholder="Search agents by name, subject, or description..." class="search-input" autofocus>
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </form>
+
+                #if(query):
+                    #if(totalResults > 0):
+                        <div class="search-results">
+                            <p class="results-count">#(totalResults) result#if(totalResults != 1):s#endif found</p>
+
+                            <div class="agents-grid">
+                                #for(agent in results):
+                                    #extend("partials/agent-card")
+                                #endfor
+                            </div>
+                        </div>
+                    #else:
+                        <div class="empty-state">
+                            <p>No agents found matching "#(query)"</p>
+                            <p class="empty-hint">Try searching for a different term or browse the <a href="/directory">directory</a>.</p>
+                        </div>
+                    #endif
+                #else:
+                    <div class="empty-state">
+                        <p>Enter a search term to find agents.</p>
+                    </div>
+                #endif
+            </div>
+        </section>
+    #endexport
+#endextend

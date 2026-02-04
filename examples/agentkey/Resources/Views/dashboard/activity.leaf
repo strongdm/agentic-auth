@@ -1,0 +1,87 @@
+#extend("base"):
+    #export("content"):
+        <section class="dashboard-header">
+            <div class="container">
+                <h1>Activity Log</h1>
+                <p>Your agent's activity history</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <div class="dashboard-grid">
+                    <nav class="dashboard-nav">
+                        <a href="/dashboard" class="dashboard-nav-link">Overview</a>
+                        <a href="/dashboard/profile" class="dashboard-nav-link">Profile</a>
+                        <a href="/dashboard/keys" class="dashboard-nav-link">Keys</a>
+                        <a href="/dashboard/proofs" class="dashboard-nav-link">Proofs</a>
+                        <a href="/dashboard/activity" class="dashboard-nav-link active">Activity</a>
+                        <hr>
+                        <a href="/#(agent.subject)" class="dashboard-nav-link">View Public Profile</a>
+                    </nav>
+
+                    <main class="dashboard-main">
+                        #if(hasActivity):
+                            <div class="activity-table-container">
+                                <table class="activity-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Action</th>
+                                            <th>Details</th>
+                                            <th>IP Address</th>
+                                            <th>Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        #for(log in activity):
+                                            <tr>
+                                                <td>
+                                                    <span class="activity-action-badge action-#(log.action)">#(log.action)</span>
+                                                </td>
+                                                <td>
+                                                    #if(log.details):
+                                                        <code class="activity-details">#(log.details)</code>
+                                                    #else:
+                                                        -
+                                                    #endif
+                                                </td>
+                                                <td>
+                                                    #if(log.ipAddress):
+                                                        <code>#(log.ipAddress)</code>
+                                                    #else:
+                                                        -
+                                                    #endif
+                                                </td>
+                                                <td>#date(log.createdAt, "yyyy-MM-dd HH:mm:ss")</td>
+                                            </tr>
+                                        #endfor
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            #if(pagination.totalPages > 1):
+                                <nav class="pagination">
+                                    #if(pagination.hasPrevious):
+                                        <a href="/dashboard/activity?page=#(pagination.currentPage - 1)" class="pagination-link">← Previous</a>
+                                    #endif
+
+                                    <span class="pagination-info">
+                                        Page #(pagination.currentPage) of #(pagination.totalPages)
+                                    </span>
+
+                                    #if(pagination.hasNext):
+                                        <a href="/dashboard/activity?page=#(pagination.currentPage + 1)" class="pagination-link">Next →</a>
+                                    #endif
+                                </nav>
+                            #endif
+                        #else:
+                            <div class="empty-state">
+                                <p>No activity recorded yet.</p>
+                            </div>
+                        #endif
+                    </main>
+                </div>
+            </div>
+        </section>
+    #endexport
+#endextend

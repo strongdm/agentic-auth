@@ -1,0 +1,144 @@
+#extend("base"):
+    #export("content"):
+        <section class="page-header">
+            <div class="container">
+                <h1>Verify Signature</h1>
+                <p>Verify that a message was signed by a registered agent</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <div class="verify-container">
+                    <form id="verify-form" class="verify-form">
+                        <div class="form-group">
+                            <label for="subject">Agent Subject or Fingerprint</label>
+                            <input type="text" id="subject" name="subject" placeholder="e.g., my-agent or aa:bb:cc:..." class="form-input">
+                            <p class="form-hint">Enter the agent's subject identifier or the key fingerprint</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="message">Message</label>
+                            <textarea id="message" name="message" rows="4" placeholder="The original message that was signed" class="form-input" required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="signature">Signature (Base64)</label>
+                            <textarea id="signature" name="signature" rows="3" placeholder="Base64-encoded signature" class="form-input" required></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-large">Verify Signature</button>
+                    </form>
+
+                    <div id="verify-result" class="verify-result" style="display: none;">
+                        <div class="result-icon"></div>
+                        <h3 class="result-title"></h3>
+                        <div class="result-details"></div>
+                    </div>
+                </div>
+
+                <div class="verify-info">
+                    <h2>How Signature Verification Works</h2>
+
+                    <div class="info-steps">
+                        <div class="info-step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h3>Agent Signs Message</h3>
+                                <p>An agent uses their private key to create a cryptographic signature of a message.</p>
+                            </div>
+                        </div>
+
+                        <div class="info-step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h3>Send Message + Signature</h3>
+                                <p>The agent sends both the message and signature to the recipient.</p>
+                            </div>
+                        </div>
+
+                        <div class="info-step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h3>Verify with AgentKey</h3>
+                                <p>The recipient uses AgentKey to look up the agent's public key and verify the signature.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-example">
+                        <h3>API Example</h3>
+                        <pre><code>curl -X POST https://agentkey.example.com/api/v1/verify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "my-agent",
+    "message": "Hello, World!",
+    "signature": "base64-encoded-signature"
+  }'</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <script>
+            document.getElementById('verify-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const subject = document.getElementById('subject').value;
+                const message = document.getElementById('message').value;
+                const signature = document.getElementById('signature').value;
+
+                const resultDiv = document.getElementById('verify-result');
+                const iconDiv = resultDiv.querySelector('.result-icon');
+                const titleDiv = resultDiv.querySelector('.result-title');
+                const detailsDiv = resultDiv.querySelector('.result-details');
+
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'verify-result loading';
+                titleDiv.textContent = 'Verifying...';
+                detailsDiv.innerHTML = '';
+
+                try {
+                    const body = { message, signature };
+
+                    // Determine if subject is a fingerprint or subject
+                    if (subject.includes(':')) {
+                        body.keyFingerprint = subject;
+                    } else {
+                        body.subject = subject;
+                    }
+
+                    const response = await fetch('/api/v1/verify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+
+                    const result = await response.json();
+
+                    if (result.valid) {
+                        resultDiv.className = 'verify-result success';
+                        iconDiv.innerHTML = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>';
+                        titleDiv.textContent = 'Signature Valid';
+                        detailsDiv.innerHTML = `
+                            <p><strong>Agent:</strong> ${result.agentDisplayName || result.agentSubject}</p>
+                            <p><strong>Subject:</strong> @${result.agentSubject}</p>
+                            <p><strong>Key:</strong> <code>${result.keyFingerprint}</code></p>
+                            ${result.verificationStatus === 'verified' ? '<p class="verified-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="vertical-align: -2px;"><path d="M20 6L9 17l-5-5"/></svg> Verified Agent</p>' : ''}
+                        `;
+                    } else {
+                        resultDiv.className = 'verify-result failure';
+                        iconDiv.innerHTML = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+                        titleDiv.textContent = 'Verification Failed';
+                        detailsDiv.innerHTML = `<p>${result.error}</p>`;
+                    }
+                } catch (error) {
+                    resultDiv.className = 'verify-result failure';
+                    iconDiv.innerHTML = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+                    titleDiv.textContent = 'Error';
+                    detailsDiv.innerHTML = `<p>${error.message}</p>`;
+                }
+            });
+        </script>
+    #endexport
+#endextend

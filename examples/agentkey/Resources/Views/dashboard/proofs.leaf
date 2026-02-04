@@ -1,0 +1,169 @@
+#extend("base"):
+    #export("content"):
+        <section class="dashboard-header">
+            <div class="container">
+                <h1>Identity Proofs</h1>
+                <p>Link your agent to external identities for verification</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <div class="dashboard-grid">
+                    <nav class="dashboard-nav">
+                        <a href="/dashboard" class="dashboard-nav-link">Overview</a>
+                        <a href="/dashboard/profile" class="dashboard-nav-link">Profile</a>
+                        <a href="/dashboard/keys" class="dashboard-nav-link">Keys</a>
+                        <a href="/dashboard/proofs" class="dashboard-nav-link active">Proofs</a>
+                        <a href="/dashboard/activity" class="dashboard-nav-link">Activity</a>
+                        <hr>
+                        <a href="/#(agent.subject)" class="dashboard-nav-link">View Public Profile</a>
+                    </nav>
+
+                    <main class="dashboard-main">
+                        #if(req.query.success):
+                            <div class="alert alert-success">
+                                Proof added! Verification will be attempted shortly.
+                            </div>
+                        #endif
+
+                        <div class="dashboard-section">
+                            <h2>Add Identity Proof</h2>
+                            <p class="section-description">
+                                Prove ownership of domains, repositories, or social accounts to increase trust in your agent.
+                            </p>
+
+                            <form action="/dashboard/proofs" method="post" class="proof-form">
+                                <div class="form-group">
+                                    <label for="proofType">Proof Type *</label>
+                                    <select id="proofType" name="proofType" required class="form-input" onchange="updateProofInstructions()">
+                                        #for(type in proofTypes):
+                                            <option value="#(type)">#(type)</option>
+                                        #endfor
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="claim">Claim *</label>
+                                    <input type="text" id="claim" name="claim" required class="form-input" placeholder="example.com or username">
+                                    <p class="form-hint" id="claim-hint">The domain, username, or identifier you're claiming ownership of.</p>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="proofData">Proof Location *</label>
+                                    <input type="text" id="proofData" name="proofData" required class="form-input" placeholder="URL or record location">
+                                    <p class="form-hint" id="proof-hint">Where the verification proof can be found.</p>
+                                </div>
+
+                                <div id="proof-instructions" class="proof-instructions">
+                                    <!-- Instructions will be populated by JavaScript -->
+                                </div>
+
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary">Add Proof</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="dashboard-section">
+                            <h2>Your Proofs</h2>
+
+                            #if(hasProofs):
+                                <div class="proofs-list">
+                                    #for(proof in proofs):
+                                        <div class="proof-card-dashboard proof-#(proof.status)">
+                                            <div class="proof-header">
+                                                <span class="proof-type-badge">#(proof.proofType)</span>
+                                                <span class="badge badge-#(proof.status)">#(proof.status)</span>
+                                            </div>
+
+                                            <div class="proof-claim">
+                                                <strong>#(proof.claim)</strong>
+                                            </div>
+
+                                            <div class="proof-location">
+                                                <a href="#(proof.proofData)" target="_blank" rel="noopener">#(proof.proofData)</a>
+                                            </div>
+
+                                            <div class="proof-meta">
+                                                <span>Added: #date(proof.createdAt, "yyyy-MM-dd")</span>
+                                                #if(proof.verifiedAt):
+                                                    <span>Verified: #date(proof.verifiedAt, "yyyy-MM-dd HH:mm")</span>
+                                                #endif
+                                            </div>
+
+                                            #if(proof.isPending):
+                                                <div class="proof-actions">
+                                                    <form action="/dashboard/proofs/#(proof.id)/verify" method="post" style="display:inline;">
+                                                        <button type="submit" class="btn btn-small btn-primary">Verify Now</button>
+                                                    </form>
+                                                </div>
+                                            #endif
+                                            #if(proof.isFailed):
+                                                <div class="proof-actions">
+                                                    <form action="/dashboard/proofs/#(proof.id)/verify" method="post" style="display:inline;">
+                                                        <button type="submit" class="btn btn-small btn-secondary">Retry Verification</button>
+                                                    </form>
+                                                </div>
+                                            #endif
+                                        </div>
+                                    #endfor
+                                </div>
+                            #else:
+                                <div class="empty-state">
+                                    <p>You haven't added any identity proofs yet.</p>
+                                    <p class="empty-hint">Add proofs to establish trust and get verified status.</p>
+                                </div>
+                            #endif
+                        </div>
+                    </main>
+                </div>
+            </div>
+        </section>
+
+        <script>
+            const proofInstructions = {
+                dns: {
+                    claimHint: 'The domain you own (e.g., example.com)',
+                    proofHint: 'The TXT record name (e.g., _agentkey.example.com)',
+                    instructions: `
+                        <h4>DNS Verification</h4>
+                        <ol>
+                            <li>Add a TXT record to your domain's DNS</li>
+                            <li>Record name: <code>_agentkey.yourdomain.com</code></li>
+                            <li>Record value: <code>agentkey-verify=#(agent.subject)</code></li>
+                            <li>Wait for DNS propagation (may take up to 48 hours)</li>
+                        </ol>
+                    `
+                },
+                github: {
+                    claimHint: 'Your GitHub username',
+                    proofHint: 'URL to a public gist (e.g., https://gist.github.com/username/abc123)',
+                    instructions: `
+                        <h4>GitHub Gist Verification</h4>
+                        <ol>
+                            <li>Create a public gist at <a href="https://gist.github.com" target="_blank">gist.github.com</a></li>
+                            <li>Name it anything you like (e.g., <code>agentkey-verification.md</code>)</li>
+                            <li>Include your subject ID somewhere in the gist: <code>#(agent.subject)</code></li>
+                            <li>Paste the gist URL as the proof location</li>
+                        </ol>
+                    `
+                }
+            };
+
+            function updateProofInstructions() {
+                const type = document.getElementById('proofType').value;
+                const info = proofInstructions[type];
+
+                if (info) {
+                    document.getElementById('claim-hint').textContent = info.claimHint;
+                    document.getElementById('proof-hint').textContent = info.proofHint;
+                    document.getElementById('proof-instructions').innerHTML = info.instructions;
+                }
+            }
+
+            // Initialize on load
+            updateProofInstructions();
+        </script>
+    #endexport
+#endextend

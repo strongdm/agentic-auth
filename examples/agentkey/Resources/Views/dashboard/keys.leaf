@@ -1,0 +1,145 @@
+#extend("base"):
+    #export("content"):
+        <section class="dashboard-header">
+            <div class="container">
+                <h1>Signing Keys</h1>
+                <p>Manage your agent's cryptographic signing keys</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <div class="dashboard-grid">
+                    <nav class="dashboard-nav">
+                        <a href="/dashboard" class="dashboard-nav-link">Overview</a>
+                        <a href="/dashboard/profile" class="dashboard-nav-link">Profile</a>
+                        <a href="/dashboard/keys" class="dashboard-nav-link active">Keys</a>
+                        <a href="/dashboard/proofs" class="dashboard-nav-link">Proofs</a>
+                        <a href="/dashboard/activity" class="dashboard-nav-link">Activity</a>
+                        <hr>
+                        <a href="/#(agent.subject)" class="dashboard-nav-link">View Public Profile</a>
+                    </nav>
+
+                    <main class="dashboard-main">
+                        #if(req.query.success):
+                            <div class="alert alert-success">
+                                Key added successfully!
+                            </div>
+                        #endif
+
+                        #if(req.query.revoked):
+                            <div class="alert alert-warning">
+                                Key has been revoked.
+                            </div>
+                        #endif
+
+                        #if(req.query.error == "key_exists"):
+                            <div class="alert alert-error">
+                                This key is already registered.
+                            </div>
+                        #endif
+
+                        <div class="dashboard-section">
+                            <h2>Add New Key</h2>
+
+                            <form action="/dashboard/keys" method="post" class="key-form">
+                                <div class="form-group">
+                                    <label for="keyType">Key Type *</label>
+                                    <select id="keyType" name="keyType" required class="form-input">
+                                        #for(type in keyTypes):
+                                            <option value="#(type)">#(type)</option>
+                                        #endfor
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="publicKey">Public Key (PEM format) *</label>
+                                    <textarea id="publicKey" name="publicKey" rows="8" required class="form-input form-input-mono" placeholder="-----BEGIN PUBLIC KEY-----
+...
+-----END PUBLIC KEY-----"></textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="label">Label (optional)</label>
+                                    <input type="text" id="label" name="label" class="form-input" maxlength="100" placeholder="e.g., Production Key">
+                                </div>
+
+                                <div class="form-group form-group-checkbox">
+                                    <label>
+                                        <input type="checkbox" name="isPrimary">
+                                        Set as Primary Key
+                                    </label>
+                                    <p class="form-hint">The primary key is used by default for signature verification.</p>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary">Add Key</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="dashboard-section">
+                            <h2>Your Keys</h2>
+
+                            #if(hasKeys):
+                                <div class="keys-list">
+                                    #for(key in keys):
+                                        <div class="key-card-dashboard #if(key.isRevoked):key-revoked#endif">
+                                            <div class="key-header">
+                                                <div class="key-badges">
+                                                    <span class="badge badge-#(key.keyType)">#(key.keyType)</span>
+                                                    #if(key.isPrimary):
+                                                        <span class="badge badge-primary">Primary</span>
+                                                    #endif
+                                                    #if(key.isRevoked):
+                                                        <span class="badge badge-revoked">Revoked</span>
+                                                    #endif
+                                                </div>
+                                                #if(key.label):
+                                                    <span class="key-label">#(key.label)</span>
+                                                #endif
+                                            </div>
+
+                                            <div class="key-fingerprint">
+                                                <code>#(key.fingerprint)</code>
+                                                <button class="copy-btn" data-copy="#(key.fingerprint)" title="Copy fingerprint"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                                            </div>
+
+                                            <div class="key-meta">
+                                                <span>Added: #date(key.createdAt, "yyyy-MM-dd")</span>
+                                                #if(key.expiresAt):
+                                                    <span>Expires: #date(key.expiresAt, "yyyy-MM-dd")</span>
+                                                #endif
+                                                #if(key.revokedAt):
+                                                    <span>Revoked: #date(key.revokedAt, "yyyy-MM-dd")</span>
+                                                #endif
+                                            </div>
+
+                                            <details class="key-details">
+                                                <summary>View Public Key</summary>
+                                                <pre class="key-content"><code>#(key.publicKey)</code></pre>
+                                            </details>
+
+                                            #if(!key.isRevoked):
+                                                <div class="key-actions">
+                                                    <form action="/dashboard/keys/#(key.id)/revoke" method="post" class="inline-form" onsubmit="return confirm('Are you sure you want to revoke this key? This cannot be undone.')">
+                                                        <button type="submit" class="btn btn-danger btn-small">Revoke Key</button>
+                                                    </form>
+                                                </div>
+                                            #endif
+                                        </div>
+                                    #endfor
+                                </div>
+                            #else:
+                                <div class="empty-state">
+                                    <p>You haven't added any signing keys yet.</p>
+                                    <p class="empty-hint">Add a key above to enable signature verification for your agent.</p>
+                                </div>
+                            #endif
+                        </div>
+                    </main>
+                </div>
+            </div>
+        </section>
+    #endexport
+#endextend

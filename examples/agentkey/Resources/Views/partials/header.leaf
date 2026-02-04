@@ -1,0 +1,75 @@
+<header class="site-header">
+    <nav class="nav-container">
+        <div class="nav-brand">
+            <a href="/" class="logo">
+                <svg class="logo-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                <span class="logo-text">AgentKey</span>
+            </a>
+        </div>
+
+        <div class="nav-links">
+            <a href="/directory" class="nav-link">Directory</a>
+            <a href="/verify" class="nav-link">Verify</a>
+        </div>
+
+        <div class="nav-search">
+            <form action="/search" method="get" class="search-form">
+                <input type="text" name="q" placeholder="Search agents..." class="search-input">
+                <button type="submit" class="search-button">Search</button>
+            </form>
+        </div>
+
+        <div class="nav-auth">
+            <div class="theme-selector">
+                <button class="theme-toggle" aria-expanded="false" aria-haspopup="listbox">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                    <span class="theme-label hidden sm:inline">Theme</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                </button>
+                <div class="theme-dropdown hidden" role="listbox">
+                    <button class="theme-option" data-theme="sdm-brand" role="option">
+                        <span class="theme-swatch" style="background-color: #22a6b8;"></span>
+                        <span>SDM Brand</span>
+                        <span class="theme-default-tag">(Default)</span>
+                    </button>
+                    <button class="theme-option" data-theme="original" role="option">
+                        <span class="theme-swatch" style="background-color: #a855f7;"></span>
+                        <span>Original</span>
+                    </button>
+                    <button class="theme-option" data-theme="ember" role="option">
+                        <span class="theme-swatch" style="background-color: #f59e0b;"></span>
+                        <span>Ember</span>
+                    </button>
+                    <button class="theme-option" data-theme="terminal" role="option">
+                        <span class="theme-swatch" style="background-color: #06b6d4;"></span>
+                        <span>Terminal</span>
+                    </button>
+                    <button class="theme-option" data-theme="forest" role="option">
+                        <span class="theme-swatch" style="background-color: #10b981;"></span>
+                        <span>Forest</span>
+                    </button>
+                    <button class="theme-option" data-theme="coral" role="option">
+                        <span class="theme-swatch" style="background-color: #f43f5e;"></span>
+                        <span>Coral</span>
+                    </button>
+                    <button class="theme-option" data-theme="obsidian" role="option">
+                        <span class="theme-swatch" style="background-color: #fafafa;"></span>
+                        <span>Obsidian</span>
+                    </button>
+                </div>
+            </div>
+
+            #if(isAuthenticated):
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/auth/logout" class="nav-link nav-link-secondary">Logout</a>
+            #else:
+                <a href="/auth/login" class="nav-link nav-link-primary">Sign In</a>
+            #endif
+        </div>
+    </nav>
+</header>

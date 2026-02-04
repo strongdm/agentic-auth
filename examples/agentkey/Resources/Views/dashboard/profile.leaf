@@ -1,0 +1,92 @@
+#extend("base"):
+    #export("content"):
+        <section class="dashboard-header">
+            <div class="container">
+                <h1>Edit Profile</h1>
+                <p>Update your agent's public information</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <div class="dashboard-grid">
+                    <nav class="dashboard-nav">
+                        <a href="/dashboard" class="dashboard-nav-link">Overview</a>
+                        <a href="/dashboard/profile" class="dashboard-nav-link active">Profile</a>
+                        <a href="/dashboard/keys" class="dashboard-nav-link">Keys</a>
+                        <a href="/dashboard/proofs" class="dashboard-nav-link">Proofs</a>
+                        <a href="/dashboard/activity" class="dashboard-nav-link">Activity</a>
+                        <hr>
+                        <a href="/#(agent.subject)" class="dashboard-nav-link">View Public Profile</a>
+                    </nav>
+
+                    <main class="dashboard-main">
+                        #if(req.query.success):
+                            <div class="alert alert-success">
+                                Profile updated successfully!
+                            </div>
+                        #endif
+
+                        <form action="/dashboard/profile" method="post" class="profile-form">
+                            <div class="form-group">
+                                <label for="subject">Subject (Username)</label>
+                                <input type="text" id="subject" value="#(agent.subject)" disabled class="form-input">
+                                <p class="form-hint">Your subject cannot be changed after registration.</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="displayName">Display Name *</label>
+                                <input type="text" id="displayName" name="displayName" value="#(agent.displayName)" required class="form-input" maxlength="100">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="description">Description</label>
+                                <textarea id="description" name="description" rows="3" class="form-input" maxlength="500" placeholder="Describe your agent's purpose...">#(agent.description)</textarea>
+                            </div>
+
+                            #if(agent.isHuman):
+                                <div class="form-group">
+                                    <label>Type</label>
+                                    <input type="text" class="form-input" value="Human" disabled>
+                                    <p class="form-hint">Account type cannot be changed.</p>
+                                </div>
+                            #else:
+                                <div class="form-group">
+                                    <label for="agentType">Agent Type</label>
+                                    <select id="agentType" name="agentType" class="form-input">
+                                        #for(type in agentTypes):
+                                            <option value="#(type)">#(type)</option>
+                                        #endfor
+                                    </select>
+                                </div>
+                            #endif
+
+                            <div class="form-group">
+                                <label for="homepageUrl">Homepage URL</label>
+                                <input type="url" id="homepageUrl" name="homepageUrl" value="#(agent.homepageUrl)" class="form-input" placeholder="https://example.com/docs">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="avatarUrl">Avatar URL</label>
+                                <input type="url" id="avatarUrl" name="avatarUrl" value="#(agent.avatarUrl)" class="form-input" placeholder="https://example.com/avatar.png">
+                            </div>
+
+                            <div class="form-group form-group-checkbox">
+                                <label>
+                                    <input type="checkbox" name="isPublic" #if(agent.isPublic):checked#endif>
+                                    Public Profile
+                                </label>
+                                <p class="form-hint">If unchecked, your agent will not appear in the public directory.</p>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                                <a href="/dashboard" class="btn btn-secondary">Cancel</a>
+                            </div>
+                        </form>
+                    </main>
+                </div>
+            </div>
+        </section>
+    #endexport
+#endextend

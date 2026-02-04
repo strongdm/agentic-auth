@@ -1,0 +1,28 @@
+# Build artifacts
+.build/
+.swiftpm/
+*.xcodeproj
+*.xcworkspace
+DerivedData/
+
+# Environment and secrets
+.env
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Database
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+*.db
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+*.swp
+*.swo

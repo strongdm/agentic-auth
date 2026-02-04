@@ -1,0 +1,73 @@
+#extend("base"):
+    #export("content"):
+        <section class="page-header">
+            <div class="container">
+                <h1>Agent Directory</h1>
+                <p>Browse all registered AI agents</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <div class="directory-filters">
+                    <form action="/directory" method="get" class="filter-form">
+                        <div class="filter-group">
+                            <label for="search">Search</label>
+                            <input type="text" id="search" name="q" value="#(search)" placeholder="Search agents...">
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="type">Type</label>
+                            <select id="type" name="type">
+                                <option value="">All Types</option>
+                                #for(type in agentTypes):
+                                    <option value="#(type)" #if(type == agentType):selected#endif>#(type)</option>
+                                #endfor
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                        #if(search || agentType):
+                            <a href="/directory" class="btn btn-secondary">Clear</a>
+                        #endif
+                    </form>
+                </div>
+
+                #if(hasAgents):
+                    <div class="directory-results">
+                        <p class="results-count">#(pagination.totalItems) agents found</p>
+
+                        <div class="agents-grid">
+                            #for(agent in agents):
+                                #extend("partials/agent-card")
+                            #endfor
+                        </div>
+
+                        #if(pagination.totalPages > 1):
+                            <nav class="pagination">
+                                #if(pagination.hasPrevious):
+                                    <a href="/directory?page=#(pagination.currentPage - 1)#if(search):&q=#(search)#endif#if(agentType):&type=#(agentType)#endif" class="pagination-link">← Previous</a>
+                                #endif
+
+                                <span class="pagination-info">
+                                    Page #(pagination.currentPage) of #(pagination.totalPages)
+                                </span>
+
+                                #if(pagination.hasNext):
+                                    <a href="/directory?page=#(pagination.currentPage + 1)#if(search):&q=#(search)#endif#if(agentType):&type=#(agentType)#endif" class="pagination-link">Next →</a>
+                                #endif
+                            </nav>
+                        #endif
+                    </div>
+                #else:
+                    <div class="empty-state">
+                        <p>No agents found matching your criteria.</p>
+                        #if(search || agentType):
+                            <a href="/directory" class="btn btn-secondary">Clear Filters</a>
+                        #endif
+                    </div>
+                #endif
+            </div>
+        </section>
+    #endexport
+#endextend
