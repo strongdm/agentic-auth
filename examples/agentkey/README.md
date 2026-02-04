@@ -13,6 +13,17 @@ AgentKey is a public directory where AI agents register their identities and **s
 3. **Verify Signatures**: Service B looks up Agent A in AgentKey, fetches their public key, and verifies the signature
 4. **Build Trust**: Add identity proofs (DNS, HTTP, GitHub) to establish verified status
 
+### Humans and Agents
+
+AgentKey distinguishes between two types of accounts:
+
+- **Humans**: Real people who authenticate via StrongDM ID. Humans can verify their identity through proofs (DNS, GitHub, etc.) and sponsor AI agents.
+- **AI Agents**: Automated systems that register signing keys. Agents can be sponsored by verified humans for increased trust.
+
+### Sponsorship
+
+Verified humans can sponsor AI agents to vouch for their trustworthiness. Sponsored agents are highlighted in the directory and receive a higher trust signal.
+
 ## Requirements
 
 - Swift 5.9+
@@ -41,7 +52,7 @@ AgentKey is a public directory where AI agents register their identities and **s
    swift run App
    ```
 
-5. **Visit** http://localhost:8080
+5. **Visit** http://localhost:9873
 
 ## Project Structure
 
@@ -69,7 +80,8 @@ agentkey/
 │   │       ├── HomeController.swift
 │   │       ├── ProfileController.swift
 │   │       ├── DashboardController.swift
-│   │       └── AuthController.swift
+│   │       ├── AuthController.swift
+│   │       └── StaticPagesController.swift
 │   │
 │   ├── Models/             # Database models
 │   │   ├── Agent.swift
@@ -80,7 +92,11 @@ agentkey/
 │   └── Migrations/         # Database migrations
 │
 ├── Resources/Views/        # Leaf templates
-├── Public/                 # Static assets (CSS, JS)
+├── Public/                 # Static assets
+│   ├── css/styles.css
+│   ├── js/app.js
+│   ├── SKILL.md            # Agent registration skill documentation
+│   └── openapi.yaml        # OpenAPI 3.1 specification
 └── Tests/AppTests/
 ```
 
@@ -95,7 +111,10 @@ agentkey/
 | GET | `/api/v1/agents/subject/:subject` | Get agent by subject |
 | GET | `/api/v1/agents/:id/keys` | List agent's public keys |
 | POST | `/api/v1/verify` | Verify a signature |
+| GET | `/api/v1/dns-lookup?domain=` | DNS TXT record lookup |
 | GET | `/health` | Health check |
+| GET | `/openapi.yaml` | OpenAPI 3.1 specification |
+| GET | `/SKILL.md` | Agent registration skill documentation |
 
 ### Protected Endpoints (requires Bearer token)
 
@@ -106,6 +125,7 @@ agentkey/
 | DELETE | `/api/v1/agents/:id` | Delete agent (owner only) |
 | POST | `/api/v1/agents/:id/keys` | Add public key |
 | DELETE | `/api/v1/agents/:id/keys/:keyId` | Revoke key |
+| POST | `/api/v1/agents/:id/sponsor` | Sponsor an agent (humans only) |
 | GET | `/api/v1/agents/:id/activity` | View activity log |
 
 ### Signature Verification
@@ -160,14 +180,30 @@ curl -X POST https://agentkey.example.com/api/v1/agents/<id>/keys \
 
 ## Web UI
 
+### Public Pages
+
 | Route | Description |
 |-------|-------------|
-| `/` | Landing page with featured agents |
+| `/` | Landing page with verified humans and sponsored agents |
 | `/directory` | Browse all public agents |
 | `/search?q=` | Search agents |
-| `/@{subject}` | Public agent profile (Keybase-style URL) |
+| `/{subject}` | Public agent profile (Keybase-style URL) |
 | `/verify` | Signature verification tool |
-| `/dashboard` | Authenticated user dashboard |
+| `/about` | About AgentKey |
+| `/privacy` | Privacy policy |
+| `/terms` | Terms of service |
+| `/docs/keys` | Key management documentation |
+| `/SKILL.md` | Agent registration instructions (for AI agents) |
+
+### Authenticated Dashboard
+
+| Route | Description |
+|-------|-------------|
+| `/dashboard` | Dashboard home |
+| `/dashboard/profile` | Edit profile |
+| `/dashboard/keys` | Manage signing keys |
+| `/dashboard/proofs` | Identity proofs |
+| `/dashboard/activity` | Activity log |
 
 ## Authentication
 
@@ -189,9 +225,10 @@ curl -X POST https://agentkey.example.com/api/v1/agents/<id>/keys \
 | `STRONGDM_AUDIENCE` | Expected token audience | - |
 | `STRONGDM_CLIENT_ID` | OAuth client ID | - |
 | `STRONGDM_CLIENT_SECRET` | OAuth client secret | - |
-| `STRONGDM_CALLBACK_URL` | OAuth callback URL | `http://localhost:8080/auth/callback` |
+| `STRONGDM_CALLBACK_URL` | OAuth callback URL | `http://localhost:9873/auth/callback` |
 | `STRONGDM_INTROSPECTION_ENABLED` | Enable token introspection | `false` |
 | `DATABASE_URL` | PostgreSQL connection string | SQLite (dev) |
+| `PORT` | Server port | `9873` |
 
 ## Development
 
@@ -225,12 +262,47 @@ swift run App migrate
 
 ## Identity Proofs
 
-Agents can add proofs to verify ownership of:
+Humans can add proofs to verify ownership of external resources:
 
-- **DNS**: Add TXT record `_agentkey.domain.com`
-- **HTTP**: Host file at `/.well-known/agentkey.txt`
-- **GitHub**: Create public gist with verification message
-- **Twitter/X**: Post verification tweet
+### DNS Proof
+Add a TXT record at `_agentkey.yourdomain.com` containing your subject ID:
+```
+_agentkey.example.com TXT "usr_abc123"
+```
+
+### HTTP Proof
+Host a file at `https://yourdomain.com/.well-known/agentkey.txt` containing:
+```
+agentkey-verify=usr_abc123
+```
+
+### GitHub Proof
+Create a public gist containing your subject ID. The gist URL becomes your proof.
+
+### Twitter/X Proof
+Post a public tweet containing your subject ID for verification.
+
+## For AI Agents
+
+AI agents can use the `/SKILL.md` endpoint to get comprehensive instructions on:
+- How to register and authenticate
+- Managing signing keys
+- Signing messages to prove identity
+- Verifying signatures from other agents
+- Looking up agent identities
+
+This is designed as a skill document for AI agents to consume directly.
+
+## Trust Signals
+
+When verifying an agent, check these trust signals in the API response:
+
+| Signal | Meaning |
+|--------|---------|
+| `verificationStatus: "verified"` | Agent has verified identity proofs |
+| `isSponsored: true` | A verified human vouches for this agent |
+| `isHuman: true` | Account belongs to a human, not AI |
+| `needsSponsor: true` | AI agent without human sponsor |
 
 ## License
 

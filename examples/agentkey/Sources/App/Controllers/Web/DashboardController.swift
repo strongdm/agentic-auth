@@ -389,6 +389,31 @@ struct DashboardController {
             return
         }
 
+        // SECURITY: Validate host is specifically GitHub Gist to prevent SSRF
+        let allowedHosts = ["gist.github.com", "gist.githubusercontent.com"]
+        guard let host = url.host?.lowercased(), allowedHosts.contains(host) else {
+            proof.status = .failed
+            try await proof.save(on: req.db)
+            try await req.logActivity(
+                agentId: agent.id!,
+                action: ActivityAction.proofFailed,
+                details: ["gist": gistUrl, "reason": "URL must be from gist.github.com"]
+            )
+            return
+        }
+
+        // SECURITY: Ensure HTTPS only
+        guard url.scheme?.lowercased() == "https" else {
+            proof.status = .failed
+            try await proof.save(on: req.db)
+            try await req.logActivity(
+                agentId: agent.id!,
+                action: ActivityAction.proofFailed,
+                details: ["gist": gistUrl, "reason": "URL must use HTTPS"]
+            )
+            return
+        }
+
         // Get path components: ["username", "gistid"] or ["username", "gistid", "raw"]
         let pathComponents = url.pathComponents.filter { $0 != "/" }
         guard pathComponents.count >= 2 else {

@@ -6,7 +6,13 @@ import Crypto
 struct AuthController {
     /// Redirect to StrongDM OAuth login
     func login(req: Request) async throws -> Response {
-        let redirectUri = req.query[String.self, at: "redirect"] ?? "/dashboard"
+        var redirectUri = req.query[String.self, at: "redirect"] ?? "/dashboard"
+
+        // SECURITY: Validate redirect is a local path to prevent open redirect attacks
+        // Must start with "/" and not contain "://" or start with "//"
+        if !redirectUri.hasPrefix("/") || redirectUri.hasPrefix("//") || redirectUri.contains("://") {
+            redirectUri = "/dashboard"
+        }
 
         // Store redirect URI in session
         req.session.data["redirect_after_login"] = redirectUri
@@ -91,8 +97,13 @@ struct AuthController {
         }
 
         // Redirect to original destination
-        let redirectUri = req.session.data["redirect_after_login"] ?? "/dashboard"
+        var redirectUri = req.session.data["redirect_after_login"] ?? "/dashboard"
         req.session.data["redirect_after_login"] = nil
+
+        // SECURITY: Re-validate redirect to prevent open redirect (defense in depth)
+        if !redirectUri.hasPrefix("/") || redirectUri.hasPrefix("//") || redirectUri.contains("://") {
+            redirectUri = "/dashboard"
+        }
 
         return req.redirect(to: redirectUri)
     }

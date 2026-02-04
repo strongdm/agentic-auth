@@ -1,5 +1,18 @@
 // AgentKey - Client-side JavaScript
 
+/**
+ * Escape HTML entities to prevent XSS
+ */
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') return unsafe;
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 // Theme definitions
 const themes = {
     'sdm-brand': { label: 'SDM Brand', accent: '#22a6b8', isDefault: true },
@@ -210,8 +223,8 @@ function initDNSLookup() {
                     const statusText = data.verified ? 'Verified' : 'Found (not verified)';
                     resultDiv.innerHTML = `
                         <div class="${statusClass}">
-                            <strong>TXT Record:</strong> ${data.record}<br>
-                            <strong>Value:</strong> <code>${data.value}</code><br>
+                            <strong>TXT Record:</strong> ${escapeHtml(data.record)}<br>
+                            <strong>Value:</strong> <code>${escapeHtml(data.value)}</code><br>
                             <strong>Status:</strong> <span class="badge badge-${data.verified ? 'verified' : 'pending'}">${statusText}</span>
                         </div>
                     `;
@@ -219,12 +232,12 @@ function initDNSLookup() {
                     resultDiv.innerHTML = `
                         <div class="dns-not-found">
                             <strong>No TXT record found</strong><br>
-                            Expected record: <code>${data.record}</code>
+                            Expected record: <code>${escapeHtml(data.record)}</code>
                         </div>
                     `;
                 }
             } catch (err) {
-                resultDiv.innerHTML = `<div class="dns-error">Error looking up DNS: ${err.message}</div>`;
+                resultDiv.innerHTML = `<div class="dns-error">Error looking up DNS: ${escapeHtml(err.message)}</div>`;
             }
 
             // Reset button

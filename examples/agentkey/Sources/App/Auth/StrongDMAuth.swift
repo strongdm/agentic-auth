@@ -1,6 +1,7 @@
 import Vapor
 import JWT
 import Foundation
+import Crypto
 
 /// StrongDM authentication service
 /// Handles JWT verification via JWKS and optional token introspection
@@ -124,8 +125,9 @@ actor StrongDMAuth {
             throw StrongDMAuthError.configurationError("Client credentials required for introspection")
         }
 
-        // Check cache
-        let cacheKey = String(token.hashValue)
+        // Check cache using SHA256 hash of token for stable cache key
+        let tokenData = Data(token.utf8)
+        let cacheKey = SHA256.hash(data: tokenData).compactMap { String(format: "%02x", $0) }.joined()
         if let cached = introspectionCache[cacheKey], Date() < cached.expiry {
             return cached.result
         }
