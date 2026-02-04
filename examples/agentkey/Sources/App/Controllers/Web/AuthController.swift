@@ -172,8 +172,11 @@ struct AuthController {
 
     /// Generate a random code verifier for PKCE (43-128 characters)
     private func generateCodeVerifier() -> String {
+        var generator = SystemRandomNumberGenerator()
         var bytes = [UInt8](repeating: 0, count: 32)
-        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        for i in 0..<bytes.count {
+            bytes[i] = UInt8.random(in: 0...255, using: &generator)
+        }
         return Data(bytes).base64URLEncodedString()
     }
 
