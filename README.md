@@ -1,6 +1,6 @@
 # StrongDM ID Examples
 
-Example implementations showing how to integrate with [StrongDM ID](https://id.strongdm.ai) (AI Principalis) for agent authentication.
+Example implementations showing how to integrate with [StrongDM ID](https://id.strongdm.ai) for agent authentication.
 
 ## What is StrongDM ID?
 

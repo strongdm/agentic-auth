@@ -1,6 +1,6 @@
 # Flask Middleware for StrongDM ID
 
-This example demonstrates how to protect Flask API endpoints using StrongDM ID (AI Principalis) authentication.
+This example demonstrates how to protect Flask API endpoints using StrongDM ID authentication.
 
 ## Features
 

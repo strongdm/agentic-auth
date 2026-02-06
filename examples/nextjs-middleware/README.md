@@ -1,6 +1,6 @@
 # Next.js Middleware for StrongDM ID
 
-This example demonstrates how to protect Next.js API routes using StrongDM ID (AI Principalis) authentication with Edge Middleware.
+This example demonstrates how to protect Next.js API routes using StrongDM ID authentication with Edge Middleware.
 
 ## Features
 
