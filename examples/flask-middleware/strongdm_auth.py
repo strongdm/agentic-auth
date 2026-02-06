@@ -44,7 +44,7 @@ class StrongDMAuth:
             return f"Hello, {g.token_claims['sub']}"
 
         @app.route('/admin')
-        @auth.require_scope('admin:read')
+        @auth.require_scope('pctl:read')
         def admin():
             return "Admin area"
     """
@@ -363,14 +363,14 @@ class StrongDMAuth:
 
         Usage:
             @app.route('/admin')
-            @auth.require_scope('admin:read')
+            @auth.require_scope('pctl:read')
             def admin():
                 return "Admin area"
 
-            @app.route('/super-admin')
-            @auth.require_scope('admin:read', 'admin:write', require_all=True)
-            def super_admin():
-                return "Super admin area"
+            @app.route('/restricted')
+            @auth.require_scope('pctl:read', require_all=True)
+            def restricted():
+                return "Restricted area"
         """
         def decorator(f: Callable) -> Callable:
             @wraps(f)

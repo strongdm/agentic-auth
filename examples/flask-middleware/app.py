@@ -34,8 +34,7 @@ def index():
             "/": "This page (public)",
             "/protected": "Requires authentication",
             "/agent-info": "Shows info about the authenticated agent",
-            "/share": "Requires share:create scope",
-            "/admin": "Requires pctl:admin scope",
+            "/admin": "Requires pctl:read scope",
         }
     })
 
@@ -68,28 +67,9 @@ def agent_info():
     })
 
 
-@app.route('/share', methods=['POST'])
-@auth.require_scope('share:create')
-def create_share():
-    """Endpoint that requires the share:create scope."""
-    return jsonify({
-        "message": "Share creation would happen here",
-        "agent": g.token_claims.get('sub'),
-    })
-
-
-@app.route('/shares')
-@auth.require_scope('share:list', 'share:create')  # Either scope works
-def list_shares():
-    """Endpoint that requires share:list OR share:create scope."""
-    return jsonify({
-        "shares": [],
-        "message": "This is where shares would be listed",
-    })
-
 
 @app.route('/admin')
-@auth.require_scope('pctl:admin')
+@auth.require_scope('pctl:read')
 def admin():
     """Admin-only endpoint."""
     return jsonify({

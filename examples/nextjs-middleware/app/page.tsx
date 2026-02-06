@@ -16,10 +16,7 @@ export default function Home() {
           <code>/api/agent-info</code> - Shows authenticated agent info
         </li>
         <li>
-          <code>/api/share</code> - Requires share:create or share:list scope
-        </li>
-        <li>
-          <code>/api/admin</code> - Requires pctl:admin scope
+          <code>/api/admin</code> - Requires pctl:read scope
         </li>
       </ul>
 

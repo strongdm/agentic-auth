@@ -32,7 +32,7 @@ def protected():
     return "You're authenticated!"
 
 @app.route('/admin')
-@auth.require_scope('pctl:admin')
+@auth.require_scope('pctl:read')
 def admin():
     return "Admin only"
 ```
@@ -45,7 +45,7 @@ TypeScript middleware for protecting Next.js API routes.
 // middleware.ts
 const protectedRoutes = {
   "/api/protected": {},
-  "/api/admin": { scopes: ["pctl:admin"] },
+  "/api/admin": { scopes: ["pctl:read"] },
 };
 ```
 
@@ -60,7 +60,7 @@ curl -X POST https://id.strongdm.ai/register/agent \
   -d '{
     "email": "you@company.com",
     "agent_name": "my-agent",
-    "requested_scopes": ["share:create", "share:list"]
+    "requested_scopes": ["pctl:read"]
   }'
 
 # Human clicks email link, gets enrollment token
@@ -76,7 +76,7 @@ curl -X POST https://id.strongdm.ai/register/agent/activate \
 curl -X POST https://id.strongdm.ai/token \
   -u "$CLIENT_ID:$CLIENT_SECRET" \
   -d "grant_type=client_credentials" \
-  -d "scope=share:create"
+  -d "scope=pctl:read"
 ```
 
 ### 3. Use the Examples
@@ -89,12 +89,7 @@ See individual example READMEs for setup instructions:
 
 | Scope | Description | Domain Restriction |
 |-------|-------------|-------------------|
-| `share:create` | Create share grants | @strongdm.com/ai |
-| `share:list` | List share grants | @strongdm.com/ai |
-| `share:revoke` | Revoke share grants | @strongdm.com/ai |
-| `share:use` | Use granted access | Any |
 | `pctl:read` | Read-only admin access | Any |
-| `pctl:admin` | Full admin access | @strongdm.com/ai |
 
 ## API Reference
 
@@ -116,7 +111,7 @@ See individual example READMEs for setup instructions:
   "access_token": "eyJ...",
   "token_type": "Bearer",
   "expires_in": 3600,
-  "scope": "share:create share:list"
+  "scope": "pctl:read"
 }
 ```
 

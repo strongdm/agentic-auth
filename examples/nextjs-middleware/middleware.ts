@@ -22,8 +22,7 @@ interface RouteConfig {
 const protectedRoutes: Record<string, RouteConfig> = {
   "/api/protected": {},
   "/api/agent-info": {},
-  "/api/share": { scopes: ["share:create", "share:list"] },
-  "/api/admin": { scopes: ["pctl:admin"] },
+  "/api/admin": { scopes: ["pctl:read"] },
 };
 
 // Public routes that skip authentication

@@ -49,6 +49,7 @@ func routes(_ app: Application) throws {
     dashboard.get("proofs", use: dashboardController.proofs)
     dashboard.post("proofs", use: dashboardController.addProof)
     dashboard.post("proofs", ":proofId", "verify", use: dashboardController.verifyProof)
+    dashboard.post("proofs", ":proofId", "delete", use: dashboardController.deleteProof)
     dashboard.get("activity", use: dashboardController.activity)
 
     // MARK: - API Routes

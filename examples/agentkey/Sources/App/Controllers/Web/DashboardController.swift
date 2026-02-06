@@ -69,7 +69,7 @@ struct DashboardController {
         struct ProfileForm: Content {
             var displayName: String
             var description: String?
-            var agentType: String
+            var agentType: String?
             var homepageUrl: String?
             var avatarUrl: String?
             var isPublic: String?
@@ -80,8 +80,8 @@ struct DashboardController {
         agent.displayName = form.displayName
         agent.description = form.description?.isEmpty == true ? nil : form.description
         // Humans cannot change their agent type
-        if agent.agentType != .human {
-            agent.agentType = AgentType(rawValue: form.agentType) ?? .assistant
+        if agent.agentType != .human, let agentType = form.agentType {
+            agent.agentType = AgentType(rawValue: agentType) ?? .assistant
         }
         agent.homepageUrl = form.homepageUrl?.isEmpty == true ? nil : form.homepageUrl
         agent.avatarUrl = form.avatarUrl?.isEmpty == true ? nil : form.avatarUrl
@@ -250,7 +250,7 @@ struct DashboardController {
         struct ProofForm: Content {
             var proofType: String
             var claim: String
-            var proofData: String
+            var proofData: String?
         }
 
         let form = try req.content.decode(ProofForm.self)
@@ -259,11 +259,23 @@ struct DashboardController {
             throw Abort(.badRequest, reason: "Invalid proof type")
         }
 
+        // For DNS proofs, auto-generate the proof data (TXT record location)
+        let proofData: String
+        switch proofType {
+        case .dns:
+            proofData = "_agentkey.\(form.claim)"
+        case .github:
+            guard let data = form.proofData, !data.isEmpty else {
+                throw Abort(.badRequest, reason: "Gist URL is required for GitHub proofs")
+            }
+            proofData = data
+        }
+
         let proof = AgentProof(
             agentId: agent.id!,
             proofType: proofType,
             claim: form.claim,
-            proofData: form.proofData
+            proofData: proofData
         )
 
         try await proof.save(on: req.db)
@@ -315,6 +327,67 @@ struct DashboardController {
         return req.redirect(to: "/dashboard/proofs")
     }
 
+    /// Delete a proof
+    func deleteProof(req: Request) async throws -> Response {
+        let sessionAgent = try req.requireSessionAgent()
+        let agent = try await getOrCreateAgent(for: sessionAgent, on: req)
+
+        guard let proofId = req.parameters.get("proofId", as: UUID.self) else {
+            throw Abort(.badRequest, reason: "Invalid proof ID")
+        }
+
+        guard let proof = try await AgentProof.query(on: req.db)
+            .filter(\.$id == proofId)
+            .filter(\.$agent.$id == agent.id!)
+            .first() else {
+            throw Abort(.notFound, reason: "Proof not found")
+        }
+
+        let proofType = proof.proofType.rawValue
+        let claim = proof.claim
+
+        // Delete the proof
+        try await proof.delete(on: req.db)
+
+        // Log activity
+        try await req.logActivity(
+            agentId: agent.id!,
+            action: ActivityAction.proofRemoved,
+            details: [
+                "proofType": proofType,
+                "claim": claim
+            ]
+        )
+
+        // Update agent verification status based on remaining proofs
+        try await updateAgentVerificationStatus(agent: agent, req: req)
+
+        return req.redirect(to: "/dashboard/proofs?deleted=1")
+    }
+
+    /// Update agent verification status based on their proofs
+    private func updateAgentVerificationStatus(agent: Agent, req: Request) async throws {
+        // Check if agent has any verified proofs remaining
+        let verifiedProofCount = try await AgentProof.query(on: req.db)
+            .filter(\.$agent.$id == agent.id!)
+            .filter(\.$status == .verified)
+            .count()
+
+        if verifiedProofCount == 0 {
+            // No verified proofs, mark as unverified
+            if agent.verificationStatus == .verified {
+                agent.verificationStatus = .unverified
+                try await agent.save(on: req.db)
+
+                try await req.logActivity(
+                    agentId: agent.id!,
+                    action: ActivityAction.verificationLost,
+                    details: ["reason": "No verified proofs remaining"]
+                )
+            }
+        }
+    }
+
     /// Verify a DNS proof by checking TXT records
     private func verifyDNSProof(proof: AgentProof, agent: Agent, req: Request) async throws {
         let domain = proof.claim
@@ -335,8 +408,8 @@ struct DashboardController {
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         let output = String(data: data, encoding: .utf8) ?? ""
 
-        // Check if the TXT record contains our expected value
-        let verified = output.contains(expectedValue)
+        // Check if the TXT record contains our expected value (accept either prefixed or bare subject)
+        let verified = output.contains(expectedValue) || output.contains(agent.subject)
 
         if verified {
             proof.status = .verified

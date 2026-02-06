@@ -40,7 +40,7 @@ npm run dev
 TOKEN=$(curl -s -X POST https://id.strongdm.ai/token \
   -u "$CLIENT_ID:$CLIENT_SECRET" \
   -d "grant_type=client_credentials" \
-  -d "scope=share:create share:list" | jq -r '.access_token')
+  -d "scope=pctl:read" | jq -r '.access_token')
 
 # Call a protected endpoint
 curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/protected
@@ -57,8 +57,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/protected
         ├── health/          # Public health check
         ├── protected/       # Basic auth required
         ├── agent-info/      # Shows token claims
-        ├── share/           # Requires share:* scopes
-        └── admin/           # Requires pctl:admin
+        └── admin/           # Requires pctl:read
 ```
 
 ## Middleware Configuration
@@ -69,8 +68,7 @@ Edit `middleware.ts` to configure protected routes:
 // Define your protected routes
 const protectedRoutes: Record<string, RouteConfig> = {
   "/api/protected": {},                                    // Any valid token
-  "/api/share": { scopes: ["share:create", "share:list"] }, // Requires scope
-  "/api/admin": { scopes: ["pctl:admin"] },                // Admin only
+  "/api/admin": { scopes: ["pctl:read"] },                  // Admin only
   "/api/optional": { optional: true },                     // Auth optional
 };
 
@@ -118,7 +116,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Check specific scopes
-    auth.checkScopes(claims, ["admin:read"]);
+    auth.checkScopes(claims, ["pctl:read"]);
 
     return NextResponse.json({ subject: claims.sub });
   } catch (error) {
@@ -150,8 +148,7 @@ export async function GET(request: NextRequest) {
 | `/api/health` | No | - | Health check |
 | `/api/protected` | Yes | Any | Basic protected endpoint |
 | `/api/agent-info` | Yes | Any | Returns token claims |
-| `/api/share` | Yes | share:create OR share:list | Share operations |
-| `/api/admin` | Yes | pctl:admin | Admin operations |
+| `/api/admin` | Yes | pctl:read | Admin operations |
 
 ## Error Responses
 
@@ -163,7 +160,7 @@ export async function GET(request: NextRequest) {
 Example error:
 ```json
 {
-  "error": "Missing required scopes: pctl:admin"
+  "error": "Missing required scopes: pctl:read"
 }
 ```
 

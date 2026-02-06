@@ -70,6 +70,8 @@ enum ActivityAction {
     static let proofAdded = "proof_added"
     static let proofVerified = "proof_verified"
     static let proofFailed = "proof_failed"
+    static let proofRemoved = "proof_removed"
+    static let verificationLost = "verification_lost"
     static let agentSponsored = "agent_sponsored"
     static let login = "login"
     static let logout = "logout"

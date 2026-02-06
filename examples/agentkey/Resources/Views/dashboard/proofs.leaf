@@ -26,6 +26,11 @@
                                 Proof added! Verification will be attempted shortly.
                             </div>
                         #endif
+                        #if(req.query.deleted):
+                            <div class="alert alert-info">
+                                Proof removed successfully.
+                            </div>
+                        #endif
 
                         <div class="dashboard-section">
                             <h2>Add Identity Proof</h2>
@@ -44,15 +49,15 @@
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="claim">Claim *</label>
+                                    <label for="claim" id="claim-label">Claim *</label>
                                     <input type="text" id="claim" name="claim" required class="form-input" placeholder="example.com or username">
                                     <p class="form-hint" id="claim-hint">The domain, username, or identifier you're claiming ownership of.</p>
                                 </div>
 
-                                <div class="form-group">
-                                    <label for="proofData">Proof Location *</label>
-                                    <input type="text" id="proofData" name="proofData" required class="form-input" placeholder="URL or record location">
-                                    <p class="form-hint" id="proof-hint">Where the verification proof can be found.</p>
+                                <div class="form-group" id="proofData-group" style="display: none;">
+                                    <label for="proofData">Gist URL *</label>
+                                    <input type="text" id="proofData" name="proofData" class="form-input" placeholder="https://gist.github.com/username/abc123">
+                                    <p class="form-hint" id="proof-hint">URL to your public GitHub gist containing the verification code.</p>
                                 </div>
 
                                 <div id="proof-instructions" class="proof-instructions">
@@ -92,20 +97,24 @@
                                                 #endif
                                             </div>
 
-                                            #if(proof.isPending):
-                                                <div class="proof-actions">
+                                            <div class="proof-actions">
+                                                #if(proof.isPending):
                                                     <form action="/dashboard/proofs/#(proof.id)/verify" method="post" style="display:inline;">
                                                         <button type="submit" class="btn btn-small btn-primary">Verify Now</button>
                                                     </form>
-                                                </div>
-                                            #endif
-                                            #if(proof.isFailed):
-                                                <div class="proof-actions">
+                                                #elseif(proof.isFailed):
                                                     <form action="/dashboard/proofs/#(proof.id)/verify" method="post" style="display:inline;">
                                                         <button type="submit" class="btn btn-small btn-secondary">Retry Verification</button>
                                                     </form>
-                                                </div>
-                                            #endif
+                                                #else:
+                                                    <form action="/dashboard/proofs/#(proof.id)/verify" method="post" style="display:inline;">
+                                                        <button type="submit" class="btn btn-small btn-secondary">Re-verify</button>
+                                                    </form>
+                                                #endif
+                                                <form action="/dashboard/proofs/#(proof.id)/delete" method="post" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this proof? This may affect your verification status.');">
+                                                    <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                                                </form>
+                                            </div>
                                         </div>
                                     #endfor
                                 </div>
@@ -124,31 +133,35 @@
         <script>
             const proofInstructions = {
                 dns: {
-                    claimHint: 'Your domain without prefix (e.g., example.com)',
-                    proofHint: 'Enter the same domain (we look up _agentkey.<domain>)',
+                    claimLabel: 'Domain *',
+                    claimPlaceholder: 'example.com or sub.example.com',
+                    claimHint: 'Your domain or subdomain (e.g., example.com, web.example.com)',
+                    showProofData: false,
                     instructions: `
                         <h4>DNS Verification</h4>
-                        <p>We will look up <code>_agentkey.&lt;your-domain&gt;</code> as a TXT record.</p>
+                        <p>We will automatically look up <code>_agentkey.&lt;your-domain&gt;</code> as a TXT record.</p>
                         <ol>
                             <li>Add a TXT record to your domain's DNS:</li>
                             <li>Record name/host: <code>_agentkey</code> (or <code>_agentkey.example.com</code> for full name)</li>
                             <li>Record type: <code>TXT</code></li>
-                            <li>Record value: <code>#(agent.subject)</code></li>
+                            <li>Record value: <code>agentkey-verify=#(agent.subject)</code></li>
                             <li>Wait for DNS propagation (may take up to 48 hours)</li>
                         </ol>
-                        <p><strong>Example:</strong> For domain <code>example.com</code>, create TXT record <code>_agentkey.example.com</code> with value <code>#(agent.subject)</code></p>
+                        <p><strong>Example:</strong> For domain <code>example.com</code>, create TXT record <code>_agentkey.example.com</code> with value <code>agentkey-verify=#(agent.subject)</code></p>
                     `
                 },
                 github: {
-                    claimHint: 'Your GitHub username',
-                    proofHint: 'URL to a public gist (e.g., https://gist.github.com/username/abc123)',
+                    claimLabel: 'GitHub Username *',
+                    claimPlaceholder: 'username',
+                    claimHint: 'Your GitHub username (must match the gist owner)',
+                    showProofData: true,
                     instructions: `
                         <h4>GitHub Gist Verification</h4>
                         <ol>
                             <li>Create a public gist at <a href="https://gist.github.com" target="_blank">gist.github.com</a></li>
                             <li>Name it anything you like (e.g., <code>agentkey-verification.md</code>)</li>
-                            <li>Include your subject ID somewhere in the gist: <code>#(agent.subject)</code></li>
-                            <li>Paste the gist URL as the proof location</li>
+                            <li>Include this verification code in the gist: <code>agentkey-verify=#(agent.subject)</code></li>
+                            <li>Paste the gist URL below</li>
                         </ol>
                     `
                 }
@@ -157,11 +170,26 @@
             function updateProofInstructions() {
                 const type = document.getElementById('proofType').value;
                 const info = proofInstructions[type];
+                const proofDataGroup = document.getElementById('proofData-group');
+                const proofDataInput = document.getElementById('proofData');
+                const claimInput = document.getElementById('claim');
+                const claimLabel = document.getElementById('claim-label');
 
                 if (info) {
+                    claimLabel.textContent = info.claimLabel;
+                    claimInput.placeholder = info.claimPlaceholder;
                     document.getElementById('claim-hint').textContent = info.claimHint;
-                    document.getElementById('proof-hint').textContent = info.proofHint;
                     document.getElementById('proof-instructions').innerHTML = info.instructions;
+
+                    // Show/hide proof data field based on proof type
+                    if (info.showProofData) {
+                        proofDataGroup.style.display = 'block';
+                        proofDataInput.required = true;
+                    } else {
+                        proofDataGroup.style.display = 'none';
+                        proofDataInput.required = false;
+                        proofDataInput.value = '';
+                    }
                 }
             }
 

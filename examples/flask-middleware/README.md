@@ -39,7 +39,7 @@ First, get a token from StrongDM ID:
 TOKEN=$(curl -s -X POST https://id.strongdm.ai/token \
   -u "$CLIENT_ID:$CLIENT_SECRET" \
   -d "grant_type=client_credentials" \
-  -d "scope=share:create share:list" | jq -r '.access_token')
+  -d "scope=pctl:read" | jq -r '.access_token')
 
 # Call the protected endpoint
 curl -H "Authorization: Bearer $TOKEN" http://localhost:5000/protected
@@ -67,21 +67,9 @@ def protected():
 ```python
 # Require a specific scope
 @app.route('/admin')
-@auth.require_scope('pctl:admin')
+@auth.require_scope('pctl:read')
 def admin():
     return "Admin only"
-
-# Require at least one of multiple scopes
-@app.route('/shares')
-@auth.require_scope('share:list', 'share:create')
-def list_shares():
-    return "Shares list"
-
-# Require ALL specified scopes
-@app.route('/super-admin')
-@auth.require_scope('pctl:admin', 'pctl:fuzz', require_all=True)
-def super_admin():
-    return "Super admin"
 ```
 
 ### Accessing Token Claims
@@ -145,12 +133,7 @@ See the [StrongDM ID documentation](https://id.strongdm.ai/.well-known/agent-ins
 
 | Scope | Description |
 |-------|-------------|
-| `share:create` | Create share grants |
-| `share:list` | List share grants |
-| `share:revoke` | Revoke share grants |
-| `share:use` | Use granted access |
 | `pctl:read` | Read-only admin access |
-| `pctl:admin` | Full admin access |
 
 ## Error Responses
 
@@ -165,7 +148,7 @@ The middleware returns standard HTTP error responses:
 Example error response:
 ```json
 {
-  "error": "Missing required scopes: pctl:admin"
+  "error": "Missing required scopes: pctl:read"
 }
 ```
 
