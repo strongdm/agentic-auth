@@ -49,6 +49,25 @@ const protectedRoutes = {
 };
 ```
 
+### [Go Middleware](./examples/go-middleware)
+
+Go middleware for protecting `net/http` endpoints. Includes a client example for registration, token acquisition, and API calls.
+
+```go
+auth, _ := New(Config{Issuer: "https://id.strongdm.ai"}, log)
+
+mux := http.NewServeMux()
+mux.Handle("GET /protected", auth.RequireAuth(handler))
+mux.Handle("GET /admin", auth.RequireScope("admin")(handler))
+```
+
+```bash
+# Client: register, confirm, then call an API — all from the CLI
+go run ./client register you@example.com
+go run ./client confirm <enrollment_id> <poll_token> <code>
+go run ./client call <client_id> <client_secret> http://localhost:8080/protected
+```
+
 ## Getting Started
 
 ### 1. Register Your Agent
@@ -84,6 +103,7 @@ curl -X POST https://id.strongdm.ai/token \
 See individual example READMEs for setup instructions:
 - [Flask Middleware README](./examples/flask-middleware/README.md)
 - [Next.js Middleware README](./examples/nextjs-middleware/README.md)
+- [Go Middleware README](./examples/go-middleware/README.md)
 
 ## Available Scopes
 
