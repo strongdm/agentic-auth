@@ -39,7 +39,7 @@ First, get a token from StrongDM ID:
 TOKEN=$(curl -s -X POST https://id.strongdm.ai/token \
   -u "$CLIENT_ID:$CLIENT_SECRET" \
   -d "grant_type=client_credentials" \
-  -d "scope=pctl:read" | jq -r '.access_token')
+  -d "scope=openid email" | jq -r '.access_token')
 
 # Call the protected endpoint
 curl -H "Authorization: Bearer $TOKEN" http://localhost:5000/protected
@@ -67,7 +67,7 @@ def protected():
 ```python
 # Require a specific scope
 @app.route('/admin')
-@auth.require_scope('pctl:read')
+@auth.require_scope('admin')
 def admin():
     return "Admin only"
 ```
@@ -133,7 +133,9 @@ See the [StrongDM ID documentation](https://id.strongdm.ai/.well-known/agent-ins
 
 | Scope | Description |
 |-------|-------------|
-| `pctl:read` | Read-only admin access |
+| `openid` | OpenID Connect identity |
+| `email` | Access user email |
+| `admin` | Administrative access |
 
 ## Error Responses
 
@@ -148,7 +150,7 @@ The middleware returns standard HTTP error responses:
 Example error response:
 ```json
 {
-  "error": "Missing required scopes: pctl:read"
+  "error": "Missing required scopes: admin"
 }
 ```
 

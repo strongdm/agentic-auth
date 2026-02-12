@@ -22,7 +22,7 @@ interface RouteConfig {
 const protectedRoutes: Record<string, RouteConfig> = {
   "/api/protected": {},
   "/api/agent-info": {},
-  "/api/admin": { scopes: ["pctl:read"] },
+  "/api/admin": { scopes: ["admin"] },
 };
 
 // Public routes that skip authentication

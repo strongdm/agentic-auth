@@ -32,7 +32,7 @@ def protected():
     return "You're authenticated!"
 
 @app.route('/admin')
-@auth.require_scope('pctl:read')
+@auth.require_scope('admin')
 def admin():
     return "Admin only"
 ```
@@ -45,7 +45,7 @@ TypeScript middleware for protecting Next.js API routes.
 // middleware.ts
 const protectedRoutes = {
   "/api/protected": {},
-  "/api/admin": { scopes: ["pctl:read"] },
+  "/api/admin": { scopes: ["admin"] },
 };
 ```
 
@@ -60,7 +60,7 @@ curl -X POST https://id.strongdm.ai/register/agent \
   -d '{
     "email": "you@company.com",
     "agent_name": "my-agent",
-    "requested_scopes": ["pctl:read"]
+    "requested_scopes": ["openid", "email"]
   }'
 
 # Human clicks email link, gets enrollment token
@@ -76,7 +76,7 @@ curl -X POST https://id.strongdm.ai/register/agent/activate \
 curl -X POST https://id.strongdm.ai/token \
   -u "$CLIENT_ID:$CLIENT_SECRET" \
   -d "grant_type=client_credentials" \
-  -d "scope=pctl:read"
+  -d "scope=openid email"
 ```
 
 ### 3. Use the Examples
@@ -89,7 +89,9 @@ See individual example READMEs for setup instructions:
 
 | Scope | Description | Domain Restriction |
 |-------|-------------|-------------------|
-| `pctl:read` | Read-only admin access | Any |
+| `openid` | OpenID Connect identity | Any |
+| `email` | Access user email | Any |
+| `admin` | Administrative access | Any |
 
 ## API Reference
 
@@ -111,7 +113,7 @@ See individual example READMEs for setup instructions:
   "access_token": "eyJ...",
   "token_type": "Bearer",
   "expires_in": 3600,
-  "scope": "pctl:read"
+  "scope": "openid email"
 }
 ```
 

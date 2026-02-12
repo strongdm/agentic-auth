@@ -34,7 +34,7 @@ def index():
             "/": "This page (public)",
             "/protected": "Requires authentication",
             "/agent-info": "Shows info about the authenticated agent",
-            "/admin": "Requires pctl:read scope",
+            "/admin": "Requires admin scope",
         }
     })
 
@@ -69,7 +69,7 @@ def agent_info():
 
 
 @app.route('/admin')
-@auth.require_scope('pctl:read')
+@auth.require_scope('admin')
 def admin():
     """Admin-only endpoint."""
     return jsonify({

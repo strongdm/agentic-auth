@@ -40,7 +40,7 @@ npm run dev
 TOKEN=$(curl -s -X POST https://id.strongdm.ai/token \
   -u "$CLIENT_ID:$CLIENT_SECRET" \
   -d "grant_type=client_credentials" \
-  -d "scope=pctl:read" | jq -r '.access_token')
+  -d "scope=openid email" | jq -r '.access_token')
 
 # Call a protected endpoint
 curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/protected
@@ -57,7 +57,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/protected
         ├── health/          # Public health check
         ├── protected/       # Basic auth required
         ├── agent-info/      # Shows token claims
-        └── admin/           # Requires pctl:read
+        └── admin/           # Requires admin
 ```
 
 ## Middleware Configuration
@@ -68,7 +68,7 @@ Edit `middleware.ts` to configure protected routes:
 // Define your protected routes
 const protectedRoutes: Record<string, RouteConfig> = {
   "/api/protected": {},                                    // Any valid token
-  "/api/admin": { scopes: ["pctl:read"] },                  // Admin only
+  "/api/admin": { scopes: ["admin"] },                  // Admin only
   "/api/optional": { optional: true },                     // Auth optional
 };
 
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Check specific scopes
-    auth.checkScopes(claims, ["pctl:read"]);
+    auth.checkScopes(claims, ["admin"]);
 
     return NextResponse.json({ subject: claims.sub });
   } catch (error) {
@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
 | `/api/health` | No | - | Health check |
 | `/api/protected` | Yes | Any | Basic protected endpoint |
 | `/api/agent-info` | Yes | Any | Returns token claims |
-| `/api/admin` | Yes | pctl:read | Admin operations |
+| `/api/admin` | Yes | admin | Admin operations |
 
 ## Error Responses
 
@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
 Example error:
 ```json
 {
-  "error": "Missing required scopes: pctl:read"
+  "error": "Missing required scopes: admin"
 }
 ```
 
