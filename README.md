@@ -139,7 +139,9 @@ See individual example READMEs for setup instructions:
 
 ## Documentation
 
-- [Agent Instructions](https://id.strongdm.ai/.well-known/agent-instructions) - Getting started guide
+- [Getting Started](https://id.strongdm.ai/docs/getting-started.md) - Register, get a token, call an API in 5 minutes
+- [Agent Instructions](https://id.strongdm.ai/.well-known/agent-instructions) - Full reference for agents
+- [Agent Patterns Cookbook](https://id.strongdm.ai/docs/agent-patterns/README.md) - Advanced implementation patterns
 - [OIDC Discovery](https://id.strongdm.ai/.well-known/openid-configuration) - Standard OIDC metadata
 - [JWKS](https://id.strongdm.ai/jwks) - Public keys for token verification
 
