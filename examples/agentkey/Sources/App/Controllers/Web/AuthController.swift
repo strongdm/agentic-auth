@@ -78,10 +78,15 @@ struct AuthController {
         // Verify and decode the ID token
         let claims = try await req.strongDMAuth.verifyToken(tokens.idToken, client: req.client)
 
+        // Preserve validated redirect target, then rotate session to prevent fixation.
+        let redirectAfterLogin = req.session.data["redirect_after_login"] ?? "/dashboard"
+        req.session.destroy()
+
         // Store session data
         req.session.data["subject"] = claims.sub.value
         req.session.data["scopes"] = claims.scope ?? ""
         req.session.data["access_token"] = tokens.accessToken
+        _ = req.csrfToken()
 
         // Get display name from claims if available
         // Note: This would require adding additional claims to TokenClaims struct
@@ -97,8 +102,7 @@ struct AuthController {
         }
 
         // Redirect to original destination
-        var redirectUri = req.session.data["redirect_after_login"] ?? "/dashboard"
-        req.session.data["redirect_after_login"] = nil
+        var redirectUri = redirectAfterLogin
 
         // SECURITY: Re-validate redirect to prevent open redirect (defense in depth)
         if !redirectUri.hasPrefix("/") || redirectUri.hasPrefix("//") || redirectUri.contains("://") {

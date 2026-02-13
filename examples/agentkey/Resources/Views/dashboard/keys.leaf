@@ -43,6 +43,7 @@
                             <h2>Add New Key</h2>
 
                             <form action="/dashboard/keys" method="post" class="key-form">
+                                <input type="hidden" name="_csrf" value="#(csrfToken)">
                                 <div class="form-group">
                                     <label for="keyType">Key Type *</label>
                                     <select id="keyType" name="keyType" required class="form-input">
@@ -123,6 +124,7 @@
                                             #if(!key.isRevoked):
                                                 <div class="key-actions">
                                                     <form action="/dashboard/keys/#(key.id)/revoke" method="post" class="inline-form" onsubmit="return confirm('Are you sure you want to revoke this key? This cannot be undone.')">
+                                                        <input type="hidden" name="_csrf" value="#(csrfToken)">
                                                         <button type="submit" class="btn btn-danger btn-small">Revoke Key</button>
                                                     </form>
                                                 </div>

@@ -55,7 +55,8 @@ struct DashboardController {
             isAuthenticated: true,
             currentUser: sessionAgent,
             agent: AgentResponse(from: agent),
-            agentTypes: AgentType.allCases.map { $0.rawValue }
+            agentTypes: AgentType.allCases.map { $0.rawValue },
+            csrfToken: req.csrfToken()
         )
 
         return try await req.view.render("dashboard/profile", context)
@@ -73,9 +74,16 @@ struct DashboardController {
             var homepageUrl: String?
             var avatarUrl: String?
             var isPublic: String?
+            var csrfToken: String?
+
+            enum CodingKeys: String, CodingKey {
+                case displayName, description, agentType, homepageUrl, avatarUrl, isPublic
+                case csrfToken = "_csrf"
+            }
         }
 
         let form = try req.content.decode(ProfileForm.self)
+        try req.validateCSRFToken(form.csrfToken)
 
         agent.displayName = form.displayName
         agent.description = form.description?.isEmpty == true ? nil : form.description
@@ -117,7 +125,8 @@ struct DashboardController {
             agent: AgentResponse(from: agent),
             keys: keys.map { PublicKeyResponse(from: $0) },
             keyTypes: KeyType.allCases.map { $0.rawValue },
-            hasKeys: !keys.isEmpty
+            hasKeys: !keys.isEmpty,
+            csrfToken: req.csrfToken()
         )
 
         return try await req.view.render("dashboard/keys", context)
@@ -133,9 +142,16 @@ struct DashboardController {
             var keyType: String
             var label: String?
             var isPrimary: String?
+            var csrfToken: String?
+
+            enum CodingKeys: String, CodingKey {
+                case publicKey, keyType, label, isPrimary
+                case csrfToken = "_csrf"
+            }
         }
 
         let form = try req.content.decode(KeyForm.self)
+        try req.validateCSRFToken(form.csrfToken)
 
         guard let keyType = KeyType(rawValue: form.keyType) else {
             throw Abort(.badRequest, reason: "Invalid key type")
@@ -192,6 +208,17 @@ struct DashboardController {
         let sessionAgent = try req.requireSessionAgent()
         let agent = try await getOrCreateAgent(for: sessionAgent, on: req)
 
+        struct CSRFForm: Content {
+            let csrfToken: String?
+
+            enum CodingKeys: String, CodingKey {
+                case csrfToken = "_csrf"
+            }
+        }
+
+        let csrfForm = try req.content.decode(CSRFForm.self)
+        try req.validateCSRFToken(csrfForm.csrfToken)
+
         guard let keyId = req.parameters.get("keyId", as: UUID.self) else {
             throw Abort(.badRequest, reason: "Invalid key ID")
         }
@@ -236,7 +263,8 @@ struct DashboardController {
             agent: AgentResponse(from: agent),
             proofs: proofs.map { ProofResponse(from: $0) },
             hasProofs: !proofs.isEmpty,
-            proofTypes: ProofType.allCases.map { $0.rawValue }
+            proofTypes: ProofType.allCases.map { $0.rawValue },
+            csrfToken: req.csrfToken()
         )
 
         return try await req.view.render("dashboard/proofs", context)
@@ -251,9 +279,16 @@ struct DashboardController {
             var proofType: String
             var claim: String
             var proofData: String?
+            var csrfToken: String?
+
+            enum CodingKeys: String, CodingKey {
+                case proofType, claim, proofData
+                case csrfToken = "_csrf"
+            }
         }
 
         let form = try req.content.decode(ProofForm.self)
+        try req.validateCSRFToken(form.csrfToken)
 
         guard let proofType = ProofType(rawValue: form.proofType) else {
             throw Abort(.badRequest, reason: "Invalid proof type")
@@ -306,6 +341,17 @@ struct DashboardController {
         let sessionAgent = try req.requireSessionAgent()
         let agent = try await getOrCreateAgent(for: sessionAgent, on: req)
 
+        struct CSRFForm: Content {
+            let csrfToken: String?
+
+            enum CodingKeys: String, CodingKey {
+                case csrfToken = "_csrf"
+            }
+        }
+
+        let csrfForm = try req.content.decode(CSRFForm.self)
+        try req.validateCSRFToken(csrfForm.csrfToken)
+
         guard let proofId = req.parameters.get("proofId", as: UUID.self) else {
             throw Abort(.badRequest, reason: "Invalid proof ID")
         }
@@ -331,6 +377,17 @@ struct DashboardController {
     func deleteProof(req: Request) async throws -> Response {
         let sessionAgent = try req.requireSessionAgent()
         let agent = try await getOrCreateAgent(for: sessionAgent, on: req)
+
+        struct CSRFForm: Content {
+            let csrfToken: String?
+
+            enum CodingKeys: String, CodingKey {
+                case csrfToken = "_csrf"
+            }
+        }
+
+        let csrfForm = try req.content.decode(CSRFForm.self)
+        try req.validateCSRFToken(csrfForm.csrfToken)
 
         guard let proofId = req.parameters.get("proofId", as: UUID.self) else {
             throw Abort(.badRequest, reason: "Invalid proof ID")
@@ -394,22 +451,23 @@ struct DashboardController {
         let expectedValue = "agentkey-verify=\(agent.subject)"
         let txtRecordName = "_agentkey.\(domain)"
 
-        // Use dig command to lookup TXT record
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/dig")
-        process.arguments = ["+short", "TXT", txtRecordName]
+        let output: String
+        do {
+            output = try lookupTXTRecord(txtRecordName)
+        } catch {
+            proof.status = .failed
+            try await proof.save(on: req.db)
+            try await req.logActivity(
+                agentId: agent.id!,
+                action: ActivityAction.proofFailed,
+                details: ["domain": domain, "reason": "DNS lookup failed"]
+            )
+            return
+        }
+        let values = parseTXTValues(from: output)
 
-        let pipe = Pipe()
-        process.standardOutput = pipe
-
-        try process.run()
-        process.waitUntilExit()
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: data, encoding: .utf8) ?? ""
-
-        // Check if the TXT record contains our expected value (accept either prefixed or bare subject)
-        let verified = output.contains(expectedValue) || output.contains(agent.subject)
+        // Require exact verification marker value.
+        let verified = values.contains(expectedValue)
 
         if verified {
             proof.status = .verified
@@ -545,9 +603,8 @@ struct DashboardController {
             return
         }
 
-        // Check if the gist contains our verification string or just the subject
-        // Accept either "agentkey-verify=<subject>" or just the subject appearing in the content
-        let verified = content.contains(expectedContent) || content.contains(agent.subject)
+        // Require an exact verification marker in the gist.
+        let verified = containsVerificationMarker(content, expected: expectedContent)
 
         if verified {
             proof.status = .verified
@@ -622,6 +679,13 @@ struct DashboardController {
     }
 
     // MARK: - Helpers
+
+    private func containsVerificationMarker(_ content: String, expected: String) -> Bool {
+        content
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .contains(expected)
+    }
 
     /// Get or create agent for the session user
     private func getOrCreateAgent(for sessionAgent: SessionAgentInfo, on req: Request) async throws -> Agent {
@@ -706,6 +770,7 @@ struct DashboardProfileContext: Content {
     let currentUser: SessionAgentInfo?
     let agent: AgentResponse
     let agentTypes: [String]
+    let csrfToken: String
 }
 
 struct DashboardKeysContext: Content {
@@ -716,6 +781,7 @@ struct DashboardKeysContext: Content {
     let keys: [PublicKeyResponse]
     let keyTypes: [String]
     let hasKeys: Bool
+    let csrfToken: String
 }
 
 struct DashboardProofsContext: Content {
@@ -726,6 +792,7 @@ struct DashboardProofsContext: Content {
     let proofs: [ProofResponse]
     let hasProofs: Bool
     let proofTypes: [String]
+    let csrfToken: String
 }
 
 struct DashboardActivityContext: Content {

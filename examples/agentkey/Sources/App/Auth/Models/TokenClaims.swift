@@ -15,6 +15,9 @@ struct TokenClaims: JWTPayload, Authenticatable {
     /// Expiration timestamp
     let exp: ExpirationClaim
 
+    /// Audience claim (string or array per JWT spec)
+    let aud: AudienceValue?
+
     /// Space-separated OAuth2 scopes
     let scope: String?
 
@@ -31,7 +34,7 @@ struct TokenClaims: JWTPayload, Authenticatable {
     let cnf: ConfirmationClaim?
 
     enum CodingKeys: String, CodingKey {
-        case sub, iss, iat, exp, scope, azp, act, cnf
+        case sub, iss, iat, exp, aud, scope, azp, act, cnf
         case clientId = "client_id"
     }
 
@@ -42,6 +45,11 @@ struct TokenClaims: JWTPayload, Authenticatable {
     /// Get scopes as an array
     var scopes: [String] {
         scope?.split(separator: " ").map(String.init) ?? []
+    }
+
+    /// Get audiences as an array.
+    var audiences: [String] {
+        aud?.values ?? []
     }
 
     /// Check if token has a specific scope
@@ -76,4 +84,38 @@ struct ActorClaim: Codable {
 struct ConfirmationClaim: Codable {
     /// JWK thumbprint
     let jkt: String?
+}
+
+/// JWT `aud` can be either a single string or an array of strings.
+enum AudienceValue: Codable {
+    case single(String)
+    case multiple([String])
+
+    var values: [String] {
+        switch self {
+        case .single(let value):
+            return [value]
+        case .multiple(let values):
+            return values
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let single = try? container.decode(String.self) {
+            self = .single(single)
+            return
+        }
+        self = .multiple(try container.decode([String].self))
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .single(let value):
+            try container.encode(value)
+        case .multiple(let values):
+            try container.encode(values)
+        }
+    }
 }

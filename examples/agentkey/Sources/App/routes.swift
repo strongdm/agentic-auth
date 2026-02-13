@@ -55,6 +55,7 @@ func routes(_ app: Application) throws {
     // MARK: - API Routes
 
     let api = app.grouped("api", "v1")
+        .grouped(APIRateLimitMiddleware())
 
     // Agent API
     let agentAPIController = AgentAPIController()

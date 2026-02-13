@@ -51,6 +51,7 @@
                         #endif
                         #if(canSponsor):
                             <form action="/sponsor/#(agent.id)" method="post" style="display:inline;">
+                                <input type="hidden" name="_csrf" value="#(csrfToken)">
                                 <button type="submit" class="btn btn-primary">Sponsor This Agent</button>
                             </form>
                         #endif

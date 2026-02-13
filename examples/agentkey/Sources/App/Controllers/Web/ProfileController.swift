@@ -62,7 +62,8 @@ struct ProfileController {
             sponsoredAgents: sponsoredAgents.map { AgentResponse(from: $0) },
             hasSponsoredAgents: !sponsoredAgents.isEmpty,
             isOwner: isOwner,
-            canSponsor: canSponsor
+            canSponsor: canSponsor,
+            csrfToken: req.csrfToken()
         )
 
         return try await req.view.render("profile", context)
@@ -86,4 +87,5 @@ struct ProfileContext: Content {
     let hasSponsoredAgents: Bool
     let isOwner: Bool
     let canSponsor: Bool
+    let csrfToken: String
 }

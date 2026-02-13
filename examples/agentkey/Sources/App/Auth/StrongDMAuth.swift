@@ -107,6 +107,13 @@ actor StrongDMAuth {
                 throw StrongDMAuthError.invalidToken("Invalid issuer")
             }
 
+            // Verify audience when configured.
+            if let audience = audience {
+                guard claims.audiences.contains(audience) else {
+                    throw StrongDMAuthError.invalidToken("Invalid audience")
+                }
+            }
+
             return claims
         } catch let error as StrongDMAuthError {
             throw error
@@ -154,6 +161,7 @@ actor StrongDMAuth {
             let iss: String?
             let exp: Int?
             let iat: Int?
+            let aud: AudienceValue?
             let scope: String?
             let client_id: String?
         }
@@ -168,12 +176,19 @@ actor StrongDMAuth {
             throw StrongDMAuthError.invalidToken("Token missing subject")
         }
 
+        if let audience = audience {
+            guard introspectionResult.aud?.values.contains(audience) == true else {
+                throw StrongDMAuthError.invalidToken("Invalid audience")
+            }
+        }
+
         // Build claims from introspection response
         let claims = TokenClaims(
             sub: SubjectClaim(value: sub),
             iss: IssuerClaim(value: introspectionResult.iss ?? issuer),
             iat: IssuedAtClaim(value: Date(timeIntervalSince1970: TimeInterval(introspectionResult.iat ?? 0))),
             exp: ExpirationClaim(value: Date(timeIntervalSince1970: TimeInterval(introspectionResult.exp ?? 0))),
+            aud: introspectionResult.aud,
             scope: introspectionResult.scope,
             clientId: introspectionResult.client_id,
             azp: nil,

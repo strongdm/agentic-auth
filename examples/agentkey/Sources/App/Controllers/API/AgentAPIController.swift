@@ -214,12 +214,28 @@ struct AgentAPIController {
     func sponsor(req: Request) async throws -> Response {
         // Try API auth first, then session auth
         let sponsorSubject: String
+        let usingSessionAuth: Bool
         if let agentInfo = req.agent {
             sponsorSubject = agentInfo.subject
+            usingSessionAuth = false
         } else if let sessionAgent = req.sessionAgent {
             sponsorSubject = sessionAgent.subject
+            usingSessionAuth = true
         } else {
             throw Abort(.unauthorized, reason: "Authentication required")
+        }
+
+        if usingSessionAuth {
+            struct SponsorForm: Content {
+                let csrfToken: String?
+
+                enum CodingKeys: String, CodingKey {
+                    case csrfToken = "_csrf"
+                }
+            }
+
+            let form = try req.content.decode(SponsorForm.self)
+            try req.validateCSRFToken(form.csrfToken)
         }
 
         guard let agentId = req.parameters.get("agentId", as: UUID.self) else {

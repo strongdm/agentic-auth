@@ -14,36 +14,23 @@ struct VerifyAPIController {
 
         let txtRecordName = "_agentkey.\(domain)"
 
-        // Use dig command to lookup TXT record
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/dig")
-        process.arguments = ["+short", "TXT", txtRecordName]
-
-        let pipe = Pipe()
-        process.standardOutput = pipe
-
-        try process.run()
-        process.waitUntilExit()
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: data, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "\"", with: "") ?? ""
+        let output = (try? lookupTXTRecord(txtRecordName)) ?? ""
+        let values = parseTXTValues(from: output)
 
         // Check if we got a result
-        let found = !output.isEmpty
+        let found = !values.isEmpty
 
         // Check if it contains a valid agentkey verification
         let subject = req.query[String.self, at: "subject"]
         var verified = false
         if let subject = subject, found {
-            verified = output.contains("agentkey-verify=\(subject)") || output.contains(subject)
+            verified = values.contains("agentkey-verify=\(subject)")
         }
 
         return DNSLookupResponse(
             domain: domain,
             record: txtRecordName,
-            value: found ? output : nil,
+            value: found ? values.joined(separator: "\n") : nil,
             found: found,
             verified: verified
         )

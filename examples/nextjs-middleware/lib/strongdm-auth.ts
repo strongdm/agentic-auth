@@ -74,10 +74,13 @@ const introspectionCache = new Map<
 const INTROSPECTION_CACHE_TTL = 60 * 1000; // 1 minute
 
 export class StrongDMAuth {
-  private config: Required<
-    Pick<StrongDMAuthConfig, "issuer"> &
-      Omit<StrongDMAuthConfig, "issuer">
-  >;
+  private config: {
+    issuer: string;
+    audience?: string;
+    introspectionEnabled: boolean;
+    clientId?: string;
+    clientSecret?: string;
+  };
 
   constructor(config: StrongDMAuthConfig = {}) {
     this.config = {
@@ -137,7 +140,7 @@ export class StrongDMAuth {
     accessToken: string,
     method: string,
     url: string
-  ): Promise<jose.JWTPayload> {
+  ): Promise<{ payload: jose.JWTPayload; jkt: string }> {
     // Decode header to get JWK
     const protectedHeader = jose.decodeProtectedHeader(dpopProof);
 
@@ -150,7 +153,9 @@ export class StrongDMAuth {
     }
 
     // Import the JWK from the proof header
-    const key = await jose.importJWK(protectedHeader.jwk as jose.JWK);
+    const proofJWK = protectedHeader.jwk as jose.JWK;
+    const key = await jose.importJWK(proofJWK);
+    const jkt = await jose.calculateJwkThumbprint(proofJWK, "sha256");
 
     // Verify the proof
     const { payload } = await jose.jwtVerify(dpopProof, key, {
@@ -186,7 +191,7 @@ export class StrongDMAuth {
       }
     }
 
-    return payload;
+    return { payload, jkt };
   }
 
   /**
@@ -206,6 +211,7 @@ export class StrongDMAuth {
         issuer: this.config.issuer,
         audience: this.config.audience,
       });
+      const claims = payload as TokenClaims;
 
       // For DPoP tokens, verify the proof
       if (tokenType === "dpop") {
@@ -218,10 +224,19 @@ export class StrongDMAuth {
           );
         }
 
-        await this.verifyDPoPProof(dpopProof, token, method, url);
+        const { jkt } = await this.verifyDPoPProof(dpopProof, token, method, url);
+        const tokenJkt = claims.cnf?.jkt;
+        if (!tokenJkt) {
+          throw new StrongDMAuthError("DPoP token missing cnf.jkt");
+        }
+        if (tokenJkt !== jkt) {
+          throw new StrongDMAuthError(
+            "DPoP proof key thumbprint does not match token cnf.jkt"
+          );
+        }
       }
 
-      return payload as TokenClaims;
+      return claims;
     } catch (error) {
       if (error instanceof StrongDMAuthError) {
         throw error;
@@ -313,7 +328,8 @@ export class StrongDMAuth {
     try {
       return await this.verifyToken(token, type, dpopHeader, method, url);
     } catch (error) {
-      if (!this.config.introspectionEnabled) {
+      // Never allow DPoP proof failures to bypass sender-constrained validation.
+      if (!this.config.introspectionEnabled || type === "dpop") {
         throw error;
       }
     }
@@ -331,12 +347,12 @@ export class StrongDMAuth {
     requireAll: boolean = false
   ): void {
     const tokenScopes = new Set((claims.scope || "").split(" ").filter(Boolean));
-    const required = new Set(requiredScopes);
+    const required = Array.from(new Set(requiredScopes));
 
     if (requireAll) {
       for (const scope of required) {
         if (!tokenScopes.has(scope)) {
-          const missing = [...required].filter((s) => !tokenScopes.has(s));
+          const missing = required.filter((s) => !tokenScopes.has(s));
           throw new StrongDMAuthError(
             `Missing required scopes: ${missing.join(", ")}`,
             403
@@ -344,10 +360,10 @@ export class StrongDMAuth {
         }
       }
     } else {
-      const hasAny = [...required].some((s) => tokenScopes.has(s));
+      const hasAny = required.some((s) => tokenScopes.has(s));
       if (!hasAny) {
         throw new StrongDMAuthError(
-          `Requires one of: ${[...required].join(", ")}`,
+          `Requires one of: ${required.join(", ")}`,
           403
         );
       }

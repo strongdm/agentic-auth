@@ -28,6 +28,7 @@
                         #endif
 
                         <form action="/dashboard/profile" method="post" class="profile-form">
+                            <input type="hidden" name="_csrf" value="#(csrfToken)">
                             <div class="form-group">
                                 <label for="subject">Subject (Username)</label>
                                 <input type="text" id="subject" value="#(agent.subject)" disabled class="form-input">

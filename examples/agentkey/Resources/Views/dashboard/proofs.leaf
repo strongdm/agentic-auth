@@ -39,6 +39,7 @@
                             </p>
 
                             <form action="/dashboard/proofs" method="post" class="proof-form">
+                                <input type="hidden" name="_csrf" value="#(csrfToken)">
                                 <div class="form-group">
                                     <label for="proofType">Proof Type *</label>
                                     <select id="proofType" name="proofType" required class="form-input" onchange="updateProofInstructions()">
@@ -100,18 +101,22 @@
                                             <div class="proof-actions">
                                                 #if(proof.isPending):
                                                     <form action="/dashboard/proofs/#(proof.id)/verify" method="post" style="display:inline;">
+                                                        <input type="hidden" name="_csrf" value="#(csrfToken)">
                                                         <button type="submit" class="btn btn-small btn-primary">Verify Now</button>
                                                     </form>
                                                 #elseif(proof.isFailed):
                                                     <form action="/dashboard/proofs/#(proof.id)/verify" method="post" style="display:inline;">
+                                                        <input type="hidden" name="_csrf" value="#(csrfToken)">
                                                         <button type="submit" class="btn btn-small btn-secondary">Retry Verification</button>
                                                     </form>
                                                 #else:
                                                     <form action="/dashboard/proofs/#(proof.id)/verify" method="post" style="display:inline;">
+                                                        <input type="hidden" name="_csrf" value="#(csrfToken)">
                                                         <button type="submit" class="btn btn-small btn-secondary">Re-verify</button>
                                                     </form>
                                                 #endif
                                                 <form action="/dashboard/proofs/#(proof.id)/delete" method="post" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this proof? This may affect your verification status.');">
+                                                    <input type="hidden" name="_csrf" value="#(csrfToken)">
                                                     <button type="submit" class="btn btn-small btn-danger">Delete</button>
                                                 </form>
                                             </div>

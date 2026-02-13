@@ -12,12 +12,14 @@ package main
 
 import (
 	"context"
+	"crypto"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -70,6 +72,8 @@ type StrongDMAuth struct {
 	introMu    sync.RWMutex
 	introCache map[string]*introCacheEntry
 }
+
+const introCacheMaxEntries = 1000
 
 type introCacheEntry struct {
 	result    *introspectionResult
@@ -224,10 +228,11 @@ func (a *StrongDMAuth) VerifyRequest(r *http.Request) (*AgentInfo, error) {
 	}
 
 	// Try JWT verification first.
-	agent, err := a.verifyJWT(r.Context(), tokenString)
+	token, err := a.verifyJWT(r.Context(), tokenString)
 	if err != nil {
-		// Fall back to introspection if enabled.
-		if a.config.IntrospectionEnabled {
+		// Fall back to introspection if enabled for Bearer tokens only.
+		// DPoP tokens must pass local JWT + proof validation to preserve sender binding.
+		if a.config.IntrospectionEnabled && tokenType != "dpop" {
 			agent, introErr := a.introspect(tokenString)
 			if introErr != nil {
 				return nil, fmt.Errorf("JWT verification failed: %w (introspection also failed: %v)", err, introErr)
@@ -237,14 +242,24 @@ func (a *StrongDMAuth) VerifyRequest(r *http.Request) (*AgentInfo, error) {
 		return nil, err
 	}
 
+	agent := tokenToAgentInfo(token)
+
 	// For DPoP tokens, verify the proof.
 	if tokenType == "dpop" {
 		dpopProof := r.Header.Get("DPoP")
 		if dpopProof == "" {
 			return nil, fmt.Errorf("DPoP token type requires DPoP proof header")
 		}
-		if err := a.verifyDPoP(dpopProof, tokenString, r.Method, requestURL(r)); err != nil {
+		proofJKT, err := a.verifyDPoP(dpopProof, tokenString, r.Method, requestURL(r))
+		if err != nil {
 			return nil, fmt.Errorf("DPoP verification failed: %w", err)
+		}
+		tokenJKT, err := tokenCNFJKT(token)
+		if err != nil {
+			return nil, err
+		}
+		if proofJKT != tokenJKT {
+			return nil, fmt.Errorf("DPoP proof key thumbprint does not match token cnf.jkt")
 		}
 	}
 
@@ -252,7 +267,7 @@ func (a *StrongDMAuth) VerifyRequest(r *http.Request) (*AgentInfo, error) {
 }
 
 // verifyJWT parses and verifies a JWT against the cached JWKS.
-func (a *StrongDMAuth) verifyJWT(ctx context.Context, tokenString string) (*AgentInfo, error) {
+func (a *StrongDMAuth) verifyJWT(ctx context.Context, tokenString string) (jwt.Token, error) {
 	keyset, err := a.cache.Get(ctx, a.jwksURL)
 	if err != nil {
 		return nil, fmt.Errorf("get JWKS: %w", err)
@@ -272,7 +287,7 @@ func (a *StrongDMAuth) verifyJWT(ctx context.Context, tokenString string) (*Agen
 		return nil, fmt.Errorf("parse/verify JWT: %w", err)
 	}
 
-	return tokenToAgentInfo(token), nil
+	return token, nil
 }
 
 // verifyDPoP validates a DPoP proof JWT.
@@ -282,30 +297,36 @@ func (a *StrongDMAuth) verifyJWT(ctx context.Context, tokenString string) (*Agen
 //   - htm: the HTTP method
 //   - htu: the request URL
 //   - ath: SHA-256 hash of the access token
-func (a *StrongDMAuth) verifyDPoP(proof, accessToken, method, url string) error {
+func (a *StrongDMAuth) verifyDPoP(proof, accessToken, method, url string) (string, error) {
 	// Parse the JWS to extract the embedded public key from the header.
 	msg, err := jws.Parse([]byte(proof))
 	if err != nil {
-		return fmt.Errorf("parse DPoP JWS: %w", err)
+		return "", fmt.Errorf("parse DPoP JWS: %w", err)
 	}
 
 	signatures := msg.Signatures()
 	if len(signatures) == 0 {
-		return fmt.Errorf("DPoP proof has no signatures")
+		return "", fmt.Errorf("DPoP proof has no signatures")
 	}
 
 	headers := signatures[0].ProtectedHeaders()
 
 	// The DPoP proof must have typ=dpop+jwt.
 	if typ := headers.Type(); typ != "dpop+jwt" {
-		return fmt.Errorf("wrong DPoP typ: got %q, want %q", typ, "dpop+jwt")
+		return "", fmt.Errorf("wrong DPoP typ: got %q, want %q", typ, "dpop+jwt")
 	}
 
 	// Extract the embedded JWK used to sign the proof.
 	proofKey := headers.JWK()
 	if proofKey == nil {
-		return fmt.Errorf("DPoP proof missing embedded JWK")
+		return "", fmt.Errorf("DPoP proof missing embedded JWK")
 	}
+
+	thumbprint, err := proofKey.Thumbprint(crypto.SHA256)
+	if err != nil {
+		return "", fmt.Errorf("compute DPoP JWK thumbprint: %w", err)
+	}
+	proofJKT := base64.RawURLEncoding.EncodeToString(thumbprint)
 
 	// Verify the proof signature using the embedded key.
 	proofToken, err := jwt.Parse([]byte(proof),
@@ -314,19 +335,19 @@ func (a *StrongDMAuth) verifyDPoP(proof, accessToken, method, url string) error 
 		jwt.WithAcceptableSkew(5*time.Second),
 	)
 	if err != nil {
-		return fmt.Errorf("verify DPoP proof: %w", err)
+		return "", fmt.Errorf("verify DPoP proof: %w", err)
 	}
 
 	// Verify HTTP method.
 	htm, _ := proofToken.Get("htm")
 	if htmStr, ok := htm.(string); !ok || !strings.EqualFold(htmStr, method) {
-		return fmt.Errorf("DPoP htm mismatch: got %v, want %q", htm, method)
+		return "", fmt.Errorf("DPoP htm mismatch: got %v, want %q", htm, method)
 	}
 
 	// Verify request URL.
 	htu, _ := proofToken.Get("htu")
 	if htuStr, ok := htu.(string); !ok || htuStr != url {
-		return fmt.Errorf("DPoP htu mismatch: got %v, want %q", htu, url)
+		return "", fmt.Errorf("DPoP htu mismatch: got %v, want %q", htu, url)
 	}
 
 	// Verify access token hash.
@@ -334,19 +355,21 @@ func (a *StrongDMAuth) verifyDPoP(proof, accessToken, method, url string) error 
 	if athStr, ok := ath.(string); ok {
 		expected := sha256Base64URL(accessToken)
 		if athStr != expected {
-			return fmt.Errorf("DPoP ath mismatch")
+			return "", fmt.Errorf("DPoP ath mismatch")
 		}
 	}
 
-	return nil
+	return proofJKT, nil
 }
 
 // introspect calls the token introspection endpoint.
 // Results are cached for 60 seconds.
 func (a *StrongDMAuth) introspect(tokenString string) (*AgentInfo, error) {
+	cacheKey := hashToken(tokenString)
+
 	// Check cache.
 	a.introMu.RLock()
-	if entry, ok := a.introCache[tokenString]; ok && time.Now().Before(entry.expiresAt) {
+	if entry, ok := a.introCache[cacheKey]; ok && time.Now().Before(entry.expiresAt) {
 		a.introMu.RUnlock()
 		if !entry.result.Active {
 			return nil, fmt.Errorf("token is not active (cached)")
@@ -361,7 +384,7 @@ func (a *StrongDMAuth) introspect(tokenString string) (*AgentInfo, error) {
 	a.introMu.RUnlock()
 
 	// Call introspection endpoint.
-	body := "token=" + tokenString
+	body := url.Values{"token": {tokenString}}.Encode()
 	req, err := http.NewRequest("POST", a.config.Issuer+"/introspect", strings.NewReader(body))
 	if err != nil {
 		return nil, err
@@ -386,7 +409,8 @@ func (a *StrongDMAuth) introspect(tokenString string) (*AgentInfo, error) {
 
 	// Cache for 60 seconds.
 	a.introMu.Lock()
-	a.introCache[tokenString] = &introCacheEntry{
+	a.evictIntrospectionCacheLocked()
+	a.introCache[cacheKey] = &introCacheEntry{
 		result:    &result,
 		expiresAt: time.Now().Add(60 * time.Second),
 	}
@@ -402,6 +426,28 @@ func (a *StrongDMAuth) introspect(tokenString string) (*AgentInfo, error) {
 		ClientID: result.ClientID,
 		Issuer:   a.config.Issuer,
 	}, nil
+}
+
+func (a *StrongDMAuth) evictIntrospectionCacheLocked() {
+	if len(a.introCache) < introCacheMaxEntries {
+		return
+	}
+
+	now := time.Now()
+	for k, entry := range a.introCache {
+		if now.After(entry.expiresAt) {
+			delete(a.introCache, k)
+		}
+	}
+	if len(a.introCache) < introCacheMaxEntries {
+		return
+	}
+
+	// Drop one entry to cap memory even if all entries are still fresh.
+	for k := range a.introCache {
+		delete(a.introCache, k)
+		break
+	}
 }
 
 // --- Helpers ---
@@ -480,6 +526,30 @@ func missingScopes(have, want []string) []string {
 func sha256Base64URL(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return base64.RawURLEncoding.EncodeToString(h[:])
+}
+
+func hashToken(token string) string {
+	h := sha256.Sum256([]byte(token))
+	return base64.RawURLEncoding.EncodeToString(h[:16])
+}
+
+func tokenCNFJKT(token jwt.Token) (string, error) {
+	cnf, ok := token.Get("cnf")
+	if !ok {
+		return "", fmt.Errorf("DPoP token missing cnf claim")
+	}
+
+	cnfMap, ok := cnf.(map[string]any)
+	if !ok {
+		return "", fmt.Errorf("DPoP token has invalid cnf claim")
+	}
+
+	jkt, ok := cnfMap["jkt"].(string)
+	if !ok || jkt == "" {
+		return "", fmt.Errorf("DPoP token missing cnf.jkt claim")
+	}
+
+	return jkt, nil
 }
 
 func requestURL(r *http.Request) string {

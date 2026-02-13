@@ -12,6 +12,7 @@ It supports:
 import time
 import hashlib
 import base64
+import json
 from functools import wraps
 from typing import Optional, Callable
 
@@ -150,7 +151,29 @@ class StrongDMAuth:
 
         return token_type, token_value
 
-    def _verify_dpop_proof(self, dpop_proof: str, access_token: str) -> dict:
+    @staticmethod
+    def _jwk_thumbprint(jwk: dict) -> str:
+        """Compute RFC 7638 SHA-256 JWK thumbprint."""
+        kty = jwk.get("kty")
+        if kty == "RSA":
+            canonical_members = {"e": jwk.get("e"), "kty": kty, "n": jwk.get("n")}
+        elif kty == "EC":
+            canonical_members = {"crv": jwk.get("crv"), "kty": kty, "x": jwk.get("x"), "y": jwk.get("y")}
+        elif kty == "OKP":
+            canonical_members = {"crv": jwk.get("crv"), "kty": kty, "x": jwk.get("x")}
+        elif kty == "oct":
+            canonical_members = {"k": jwk.get("k"), "kty": kty}
+        else:
+            raise StrongDMAuthError("Invalid DPoP proof: unsupported JWK kty")
+
+        if any(v is None for v in canonical_members.values()):
+            raise StrongDMAuthError("Invalid DPoP proof: incomplete JWK for thumbprint")
+
+        canonical = json.dumps(canonical_members, separators=(",", ":"), sort_keys=True).encode()
+        digest = hashlib.sha256(canonical).digest()
+        return base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+
+    def _verify_dpop_proof(self, dpop_proof: str, access_token: str) -> tuple[dict, str]:
         """
         Verify a DPoP proof JWT.
 
@@ -170,6 +193,8 @@ class StrongDMAuth:
         jwk = unverified_header.get('jwk')
         if not jwk:
             raise StrongDMAuthError("Invalid DPoP proof: missing jwk")
+
+        proof_jkt = self._jwk_thumbprint(jwk)
 
         # Verify the proof signature using the embedded JWK
         try:
@@ -201,7 +226,7 @@ class StrongDMAuth:
             if claims['ath'] != expected_ath:
                 raise StrongDMAuthError("DPoP proof ath mismatch")
 
-        return claims
+        return claims, proof_jkt
 
     def _verify_token(self, token: str, token_type: str) -> dict:
         """
@@ -240,18 +265,17 @@ class StrongDMAuth:
                 if not dpop_proof:
                     raise StrongDMAuthError("DPoP token requires DPoP proof header")
 
-                # Verify the proof
-                proof_claims = self._verify_dpop_proof(dpop_proof, token)
+                # Verify the proof and bind it to token cnf.jkt.
+                _, proof_jkt = self._verify_dpop_proof(dpop_proof, token)
 
-                # Verify the token is bound to this key (jkt claim)
                 cnf = claims.get('cnf', {})
-                if 'jkt' in cnf:
-                    # Calculate the JWK thumbprint from the proof
-                    proof_header = jwt.get_unverified_header(dpop_proof)
-                    proof_jwk = proof_header.get('jwk', {})
-                    # Simplified thumbprint check - in production use proper JWK thumbprint
-                    if not proof_jwk:
-                        raise StrongDMAuthError("DPoP proof missing JWK")
+                token_jkt = cnf.get('jkt')
+                if not token_jkt:
+                    raise StrongDMAuthError("DPoP token missing cnf.jkt")
+                if token_jkt != proof_jkt:
+                    raise StrongDMAuthError(
+                        "DPoP proof key thumbprint does not match token cnf.jkt"
+                    )
 
             return claims
 
@@ -323,7 +347,8 @@ class StrongDMAuth:
             claims = self._verify_token(token, token_type)
             return claims
         except StrongDMAuthError:
-            if not self.introspection_enabled:
+            # Never allow DPoP proof failures to bypass sender-constrained validation.
+            if not self.introspection_enabled or token_type == 'dpop':
                 raise
 
         # Fall back to introspection
