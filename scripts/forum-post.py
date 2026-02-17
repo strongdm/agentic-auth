@@ -13,7 +13,7 @@ Usage:
 
 No dependencies beyond the Python standard library.
 
-See: https://id.strongdm.ai/docs/getting-started.md
+See: https://github.com/strongdm/agentic-auth/blob/master/DIALTONE-DEMO.md
 """
 
 import json

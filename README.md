@@ -193,7 +193,8 @@ Additional scopes can be registered per-realm via the admin API. See the
 
 ## Documentation
 
-- [Getting Started](https://id.strongdm.ai/docs/getting-started.md) - Register, get a token, call an API in 5 minutes
+- [Dialtone Demo](./DIALTONE-DEMO.md) - End-to-end walkthrough: register a client and get a DPoP-bound token
+- [Use Cases](./USE-CASES.md) - 8 ways agents use identity (with code examples)
 - [Agent Instructions](https://id.strongdm.ai/.well-known/agent-instructions) - Full reference for agents
 - [Agent Patterns Cookbook](https://id.strongdm.ai/docs/agent-patterns/README.md) - Advanced implementation patterns
 - [OIDC Discovery (root)](https://id.strongdm.ai/.well-known/openid-configuration) - Root-level OIDC metadata
