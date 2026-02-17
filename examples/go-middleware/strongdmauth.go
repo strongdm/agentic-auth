@@ -69,6 +69,9 @@ type StrongDMAuth struct {
 	cancel  context.CancelFunc
 	log     *slog.Logger
 
+	registeredMu   sync.Mutex
+	registeredURLs map[string]bool
+
 	introMu    sync.RWMutex
 	introCache map[string]*introCacheEntry
 }
@@ -118,12 +121,13 @@ func New(cfg Config, log *slog.Logger) (*StrongDMAuth, error) {
 	log.Info("StrongDM auth initialized", "issuer", cfg.Issuer)
 
 	return &StrongDMAuth{
-		config:     cfg,
-		cache:      cache,
-		jwksURL:    jwksURL,
-		cancel:     cancel,
-		log:        log,
-		introCache: make(map[string]*introCacheEntry),
+		config:         cfg,
+		cache:          cache,
+		jwksURL:        jwksURL,
+		cancel:         cancel,
+		log:            log,
+		registeredURLs: map[string]bool{jwksURL: true},
+		introCache:     make(map[string]*introCacheEntry),
 	}, nil
 }
 
@@ -266,16 +270,75 @@ func (a *StrongDMAuth) VerifyRequest(r *http.Request) (*AgentInfo, error) {
 	return agent, nil
 }
 
+// validateIssuer checks that the token issuer is either the configured base
+// issuer or a realm-qualified issuer under it (e.g. base + "/realms/my-org").
+func (a *StrongDMAuth) validateIssuer(tokenIssuer string) error {
+	baseIssuer := a.config.Issuer
+	if tokenIssuer == baseIssuer {
+		return nil
+	}
+	if strings.HasPrefix(tokenIssuer, baseIssuer+"/realms/") {
+		return nil
+	}
+	return fmt.Errorf("invalid issuer: %s", tokenIssuer)
+}
+
+// getKeySet returns the JWKS keyset for the given URL, registering it with
+// the cache on first use.
+func (a *StrongDMAuth) getKeySet(ctx context.Context, jwksURL string) (jwk.Set, error) {
+	a.registeredMu.Lock()
+	if !a.registeredURLs[jwksURL] {
+		if err := a.cache.Register(jwksURL, jwk.WithMinRefreshInterval(15*time.Minute)); err != nil {
+			a.registeredMu.Unlock()
+			return nil, fmt.Errorf("register JWKS URL %s: %w", jwksURL, err)
+		}
+		a.registeredURLs[jwksURL] = true
+	}
+	a.registeredMu.Unlock()
+	return a.cache.Get(ctx, jwksURL)
+}
+
+// peekIssuer extracts the iss claim from a JWT without verifying it.
+func peekIssuer(tokenString string) (string, error) {
+	parts := strings.SplitN(tokenString, ".", 3)
+	if len(parts) != 3 {
+		return "", fmt.Errorf("invalid JWT format")
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("decode JWT payload: %w", err)
+	}
+	var claims struct {
+		Issuer string `json:"iss"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return "", fmt.Errorf("unmarshal JWT claims: %w", err)
+	}
+	return claims.Issuer, nil
+}
+
 // verifyJWT parses and verifies a JWT against the cached JWKS.
+// The JWKS endpoint is derived from the token's actual issuer to support
+// realm-qualified issuers (e.g. https://id.strongdm.ai/realms/my-org).
 func (a *StrongDMAuth) verifyJWT(ctx context.Context, tokenString string) (jwt.Token, error) {
-	keyset, err := a.cache.Get(ctx, a.jwksURL)
+	// Peek at unverified claims to determine the issuer and JWKS endpoint.
+	tokenIssuer, err := peekIssuer(tokenString)
+	if err != nil {
+		return nil, err
+	}
+	if err := a.validateIssuer(tokenIssuer); err != nil {
+		return nil, err
+	}
+
+	// Derive JWKS URL from the token's actual issuer.
+	jwksURL := strings.TrimRight(tokenIssuer, "/") + "/jwks"
+	keyset, err := a.getKeySet(ctx, jwksURL)
 	if err != nil {
 		return nil, fmt.Errorf("get JWKS: %w", err)
 	}
 
 	parseOpts := []jwt.ParseOption{
 		jwt.WithKeySet(keyset),
-		jwt.WithIssuer(a.config.Issuer),
 		jwt.WithValidate(true),
 	}
 	if a.config.Audience != "" {

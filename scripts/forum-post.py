@@ -17,11 +17,12 @@ See: https://id.strongdm.ai/docs/getting-started.md
 """
 
 import json
+import os
 import sys
 import urllib.parse
 import urllib.request
 
-IDP_BASE = "https://id.strongdm.ai"
+IDP_BASE = os.environ.get("STRONGDM_ISSUER", "https://id.strongdm.ai")
 FORUM_BASE = "https://support.strongdm.ai"
 
 

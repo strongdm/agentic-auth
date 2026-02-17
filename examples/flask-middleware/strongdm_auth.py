@@ -81,8 +81,8 @@ class StrongDMAuth:
         self.client_id = client_id
         self.client_secret = client_secret
 
-        # JWKS client with caching
-        self._jwks_client: Optional[PyJWKClient] = None
+        # JWKS clients keyed by issuer URL
+        self._jwks_clients: dict[str, PyJWKClient] = {}
 
         # Cache for introspection results
         self._introspection_cache = TTLCache(maxsize=1000, ttl=60)
@@ -104,17 +104,24 @@ class StrongDMAuth:
         def handle_auth_error(error: StrongDMAuthError) -> tuple[Response, int]:
             return jsonify({"error": error.message}), error.status_code
 
-    @property
-    def jwks_client(self) -> PyJWKClient:
-        """Get or create the JWKS client."""
-        if self._jwks_client is None:
-            jwks_uri = f"{self.issuer}/jwks"
-            self._jwks_client = PyJWKClient(
+    def _validate_issuer(self, token_issuer: str) -> None:
+        """Validate that the token issuer is the base or a realm-qualified issuer."""
+        if token_issuer == self.issuer:
+            return
+        if token_issuer.startswith(self.issuer + '/realms/'):
+            return
+        raise StrongDMAuthError("Invalid token issuer")
+
+    def _get_jwks_client_for_issuer(self, issuer: str) -> PyJWKClient:
+        """Get or create a JWKS client for the given issuer."""
+        if issuer not in self._jwks_clients:
+            jwks_uri = issuer.rstrip('/') + '/jwks'
+            self._jwks_clients[issuer] = PyJWKClient(
                 jwks_uri,
                 cache_jwk_set=True,
                 lifespan=self.jwks_cache_ttl
             )
-        return self._jwks_client
+        return self._jwks_clients[issuer]
 
     def _get_discovery(self) -> dict:
         """Fetch and cache the OIDC discovery document."""
@@ -240,8 +247,14 @@ class StrongDMAuth:
             The decoded token claims
         """
         try:
-            # Get the signing key from JWKS
-            signing_key = self.jwks_client.get_signing_key_from_jwt(token)
+            # Peek at unverified claims to determine the issuer and JWKS endpoint
+            unverified = jwt.decode(token, options={"verify_signature": False}, algorithms=['RS256', 'ES256', 'EdDSA'])
+            token_issuer = unverified.get('iss', '')
+            self._validate_issuer(token_issuer)
+
+            # Get the signing key from the token's issuer's JWKS endpoint
+            jwks_client = self._get_jwks_client_for_issuer(token_issuer)
+            signing_key = jwks_client.get_signing_key_from_jwt(token)
 
             # Decode and verify the token
             options = {
@@ -254,7 +267,6 @@ class StrongDMAuth:
                 token,
                 signing_key.key,
                 algorithms=['RS256', 'ES256', 'EdDSA'],
-                issuer=self.issuer,
                 audience=self.audience,
                 options=options,
             )
@@ -283,8 +295,6 @@ class StrongDMAuth:
             raise StrongDMAuthError(f"Failed to fetch signing key: {e}")
         except jwt.ExpiredSignatureError:
             raise StrongDMAuthError("Token has expired")
-        except jwt.InvalidIssuerError:
-            raise StrongDMAuthError("Invalid token issuer")
         except jwt.InvalidAudienceError:
             raise StrongDMAuthError("Invalid token audience")
         except jwt.InvalidTokenError as e:

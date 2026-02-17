@@ -68,13 +68,43 @@ go run ./client confirm <enrollment_id> <poll_token> <code>
 go run ./client call <client_id> <client_secret> http://localhost:8080/protected
 ```
 
+### [DPoP Client](./examples/dpop-client)
+
+Client-side DPoP proof generation in Python, Go (stdlib only), and TypeScript. Shows agents how to create sender-constrained tokens that can't be stolen or replayed.
+
+```go
+// Generate key, create proof, request DPoP-bound token — zero dependencies
+privKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+proof := createDPoPProof(privKey, "POST", tokenURL, "")
+req.Header.Set("DPoP", proof)
+```
+
+### [SPIFFE Client](./examples/spiffe-client)
+
+Workload identity via SPIFFE/SVID in Python, Go, and TypeScript. Fetch trust bundles and request JWT-SVIDs for service mesh authentication.
+
+```bash
+# Fetch trust bundle, get bearer token, request JWT-SVID
+STRONGDM_CLIENT_ID=cli_xxx STRONGDM_CLIENT_SECRET=sec_xxx \
+  python examples/spiffe-client/python/spiffe_client.py
+```
+
 ## Getting Started
 
 ### 1. Register Your Agent
 
 ```bash
-# Human sponsor initiates registration
+# Option 1: Root path (realm resolved from email domain)
 curl -X POST https://id.strongdm.ai/register/agent \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "you@company.com",
+    "agent_name": "my-agent",
+    "requested_scopes": ["openid", "email"]
+  }'
+
+# Option 2: Realm-qualified path (explicit, preferred for multi-tenant)
+curl -X POST https://id.strongdm.ai/realms/my-org/register/agent \
   -H "Content-Type: application/json" \
   -d '{
     "email": "you@company.com",
@@ -98,20 +128,34 @@ curl -X POST https://id.strongdm.ai/token \
   -d "scope=openid email"
 ```
 
+> **Note**: The token endpoint resolves your realm automatically from your `client_id`.
+> The returned access token's `iss` claim will be realm-qualified
+> (e.g., `https://id.strongdm.ai/realms/my-org`). Ensure your token validation
+> accepts realm-qualified issuers.
+
 ### 3. Use the Examples
 
 See individual example READMEs for setup instructions:
-- [Flask Middleware README](./examples/flask-middleware/README.md)
-- [Next.js Middleware README](./examples/nextjs-middleware/README.md)
-- [Go Middleware README](./examples/go-middleware/README.md)
+
+**Server-side (validate tokens):**
+- [Flask Middleware](./examples/flask-middleware/README.md) — Python
+- [Go Middleware](./examples/go-middleware/README.md) — Go
+- [Next.js Middleware](./examples/nextjs-middleware/README.md) — TypeScript
+
+**Client-side (acquire tokens):**
+- [DPoP Client](./examples/dpop-client/README.md) — Sender-constrained tokens (Python, Go, TypeScript)
+- [SPIFFE Client](./examples/spiffe-client/README.md) — Workload identity / JWT-SVID (Python, Go, TypeScript)
 
 ## Available Scopes
 
-| Scope | Description | Domain Restriction |
-|-------|-------------|-------------------|
-| `openid` | OpenID Connect identity | Any |
-| `email` | Access user email | Any |
-| `admin` | Administrative access | Any |
+| Scope | Description | Access |
+|-------|-------------|--------|
+| `openid` | OpenID Connect identity | Any registered client |
+| `email` | Access user email | Any registered client |
+| `admin` | Administrative access | Superadmin only |
+
+Additional scopes can be registered per-realm via the admin API. See the
+[agent-instructions](https://id.strongdm.ai/.well-known/agent-instructions) for details.
 
 ## API Reference
 
@@ -121,10 +165,20 @@ See individual example READMEs for setup instructions:
 |----------|--------|-------------|
 | `/register/agent` | POST | Start agent enrollment |
 | `/register/agent/activate` | POST | Activate with enrollment token |
+| `/register/request` | POST | Start client self-registration |
+| `/register/confirm` | POST | Complete self-registration |
+| `/register/status/:id` | GET | Poll registration status |
 | `/token` | POST | Get access token |
+| `/realms/{name}/token` | POST | Realm-qualified token endpoint |
 | `/introspect` | POST | Validate token |
+| `/revoke` | POST | Token revocation (RFC 7009) |
+| `/userinfo` | GET | OIDC userinfo (authenticated) |
 | `/jwks` | GET | JSON Web Key Set |
+| `/realms/{name}/jwks` | GET | Realm-qualified JWKS |
 | `/.well-known/openid-configuration` | GET | OIDC discovery |
+| `/realms/{name}/.well-known/openid-configuration` | GET | Realm-qualified discovery |
+| `/svid/jwt` | POST | Request JWT-SVID (authenticated) |
+| `/.well-known/spiffe-trust-bundle` | GET | SPIFFE trust bundle (JWKS) |
 
 ### Token Response
 
@@ -142,7 +196,8 @@ See individual example READMEs for setup instructions:
 - [Getting Started](https://id.strongdm.ai/docs/getting-started.md) - Register, get a token, call an API in 5 minutes
 - [Agent Instructions](https://id.strongdm.ai/.well-known/agent-instructions) - Full reference for agents
 - [Agent Patterns Cookbook](https://id.strongdm.ai/docs/agent-patterns/README.md) - Advanced implementation patterns
-- [OIDC Discovery](https://id.strongdm.ai/.well-known/openid-configuration) - Standard OIDC metadata
+- [OIDC Discovery (root)](https://id.strongdm.ai/.well-known/openid-configuration) - Root-level OIDC metadata
+- [OIDC Discovery (realm)](https://id.strongdm.ai/realms/{realm}/.well-known/openid-configuration) - Realm-qualified OIDC metadata (preferred)
 - [JWKS](https://id.strongdm.ai/jwks) - Public keys for token verification
 
 ## Security Features

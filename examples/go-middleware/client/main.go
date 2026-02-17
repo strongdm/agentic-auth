@@ -26,7 +26,12 @@ import (
 	"strings"
 )
 
-const idpURL = "https://id.strongdm.ai"
+var idpURL = func() string {
+	if v := os.Getenv("STRONGDM_ISSUER"); v != "" {
+		return v
+	}
+	return "https://id.strongdm.ai"
+}()
 
 func main() {
 	if len(os.Args) < 2 {

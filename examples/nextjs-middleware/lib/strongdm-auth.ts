@@ -61,9 +61,11 @@ export class StrongDMAuthError extends Error {
   }
 }
 
-// JWKS cache
-let jwksCache: jose.JWTVerifyGetKey | null = null;
-let jwksCacheExpiry = 0;
+// JWKS cache keyed by issuer URL
+const jwksCacheMap = new Map<
+  string,
+  { keyset: jose.JWTVerifyGetKey; expiry: number }
+>();
 const JWKS_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 // Introspection cache
@@ -93,20 +95,30 @@ export class StrongDMAuth {
   }
 
   /**
-   * Get the JWKS keyset for token verification.
+   * Validate that the token issuer is the base or a realm-qualified issuer.
    */
-  private async getJWKS(): Promise<jose.JWTVerifyGetKey> {
-    const now = Date.now();
+  private validateIssuer(tokenIssuer: string): void {
+    if (tokenIssuer === this.config.issuer) return;
+    if (tokenIssuer.startsWith(this.config.issuer + '/realms/')) return;
+    throw new StrongDMAuthError('Invalid token issuer');
+  }
 
-    if (jwksCache && now < jwksCacheExpiry) {
-      return jwksCache;
+  /**
+   * Get the JWKS keyset for token verification, keyed by issuer.
+   */
+  private async getJWKS(issuer: string): Promise<jose.JWTVerifyGetKey> {
+    const now = Date.now();
+    const cached = jwksCacheMap.get(issuer);
+
+    if (cached && now < cached.expiry) {
+      return cached.keyset;
     }
 
-    const jwksUrl = new URL("/jwks", this.config.issuer);
-    jwksCache = jose.createRemoteJWKSet(jwksUrl);
-    jwksCacheExpiry = now + JWKS_CACHE_TTL;
+    const jwksUrl = new URL("/jwks", issuer);
+    const keyset = jose.createRemoteJWKSet(jwksUrl);
+    jwksCacheMap.set(issuer, { keyset, expiry: now + JWKS_CACHE_TTL });
 
-    return jwksCache;
+    return keyset;
   }
 
   /**
@@ -204,11 +216,15 @@ export class StrongDMAuth {
     method?: string,
     url?: string
   ): Promise<TokenClaims> {
-    const jwks = await this.getJWKS();
+    // Peek at unverified claims to determine the issuer and JWKS endpoint
+    const unverified = jose.decodeJwt(token);
+    const tokenIssuer = unverified.iss || '';
+    this.validateIssuer(tokenIssuer);
+
+    const jwks = await this.getJWKS(tokenIssuer);
 
     try {
       const { payload } = await jose.jwtVerify(token, jwks, {
-        issuer: this.config.issuer,
         audience: this.config.audience,
       });
       const claims = payload as TokenClaims;
