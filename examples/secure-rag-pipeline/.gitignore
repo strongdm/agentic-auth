@@ -1,0 +1,25 @@
+# Environment — never commit credentials
+.env
+.env.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Vector store data
+qdrant-data/
+
+# Model cache (ranker downloads on first run)
+.cache/
+models/
+
+# IDE
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,119 @@
+version: "3.8"
+
+services:
+  # --- Infrastructure ---
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # --- MCP Resource Servers ---
+  docs-mcp:
+    build:
+      context: .
+      dockerfile: mcp-servers/docs-mcp/Dockerfile
+    ports:
+      - "8001:8000"
+    environment:
+      - SDM_ISSUER=${SDM_ISSUER:-https://id.strongdm.ai/realms/default}
+      - SDM_JWKS_URL=${SDM_ISSUER:-https://id.strongdm.ai/realms/default}/jwks
+      - DOCS_ROOT=/docs
+    volumes:
+      - ./sample-docs:/docs:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  vectordb-mcp:
+    build:
+      context: .
+      dockerfile: mcp-servers/vectordb-mcp/Dockerfile
+    ports:
+      - "8002:8000"
+    environment:
+      - SDM_ISSUER=${SDM_ISSUER:-https://id.strongdm.ai/realms/default}
+      - SDM_JWKS_URL=${SDM_ISSUER:-https://id.strongdm.ai/realms/default}/jwks
+      - QDRANT_URL=http://qdrant:6333
+      - COLLECTION_NAME=rag-documents
+      - VECTOR_DIM=3072
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  ranker-mcp:
+    build:
+      context: .
+      dockerfile: mcp-servers/ranker-mcp/Dockerfile
+    ports:
+      - "8003:8000"
+    environment:
+      - SDM_ISSUER=${SDM_ISSUER:-https://id.strongdm.ai/realms/default}
+      - SDM_JWKS_URL=${SDM_ISSUER:-https://id.strongdm.ai/realms/default}/jwks
+      - RANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-12-v2
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  llm-mcp:
+    build:
+      context: .
+      dockerfile: mcp-servers/llm-mcp/Dockerfile
+    ports:
+      - "8004:8000"
+    environment:
+      - SDM_ISSUER=${SDM_ISSUER:-https://id.strongdm.ai/realms/default}
+      - SDM_JWKS_URL=${SDM_ISSUER:-https://id.strongdm.ai/realms/default}/jwks
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DEFAULT_MODEL=claude-sonnet-4-6-20250514
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # --- Orchestrator ---
+  orchestrator:
+    build:
+      context: .
+      dockerfile: orchestrator/Dockerfile
+    environment:
+      - SDM_CLIENT_ID=${SDM_CLIENT_ID}
+      - SDM_CLIENT_SECRET=${SDM_CLIENT_SECRET}
+      - SDM_ISSUER=${SDM_ISSUER:-https://id.strongdm.ai/realms/default}
+      - DOCS_MCP_URL=http://docs-mcp:8000
+      - VECTORDB_MCP_URL=http://vectordb-mcp:8000
+      - RANKER_MCP_URL=http://ranker-mcp:8000
+      - LLM_MCP_URL=http://llm-mcp:8000
+    depends_on:
+      docs-mcp:
+        condition: service_healthy
+      vectordb-mcp:
+        condition: service_healthy
+      ranker-mcp:
+        condition: service_healthy
+      llm-mcp:
+        condition: service_healthy
+    # By default, runs the orchestrator in interactive mode.
+    # Override with: docker compose run orchestrator python -m orchestrator.query "your question"
+    stdin_open: true
+    tty: true
+
+volumes:
+  qdrant-data:
