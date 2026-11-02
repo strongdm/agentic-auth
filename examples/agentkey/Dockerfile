@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     tzdata \
     dnsutils \
+    && apt-get install -y --only-upgrade libssl3 openssl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
